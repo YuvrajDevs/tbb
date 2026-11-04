@@ -31,6 +31,8 @@ the page frames them, so no borders. JPG, long side 2000 px or more.
 
 ## Audio — `public/cases/017/media/`
 
+In place (5 Nov 2026). Kabir's lines were generated in VoiceStudio and cloned from one take so he is one voice; the shout is a second voice. The sangeet (bhangra dhol, film-style chord loop, crowd chatter, cheers and claps) is synthesised, mixed on the script's timings and passed through a phone-line filter (300–3400 Hz, 8 kHz). MP3 64 kbps mono, 38.4 s.
+
 | File | Length | Exhibit | Content |
 | --- | --- | --- | --- |
 | `exhibit-20-voicemail.mp3` | ~38 s | 20, voicemail | Kabir Sethi (48, Delhi-Punjabi accent, tense, slightly drunk-tired) leaving a phone voicemail from a loud wedding sangeet: dhol and film music behind him the whole time. Script below. Phone-line EQ. |
