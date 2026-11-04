@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
+import { allSolved, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
+import { checkAnswer, fetchHint, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
+import { RatingPrompt } from "./RatingPrompt";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
@@ -154,7 +156,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   }, [panel, chat, priv.chatReadAt, setPriv]);
 
   /* ---------- narration ---------- */
-  const lines = scriptLines(c, s.narration.script);
+  const lines = scriptLines(c, s.narration.script, s);
   const line = lines[Math.min(s.narration.line, lines.length - 1)];
   const spoken = useRef<string>("");
   // Continuous play: when a line finishes, the next one starts on its own (host or solo moves the
@@ -177,7 +179,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const lineIdRef = useRef(line?.id);
   lineIdRef.current = line?.id;
   const speak = useCallback(
-    (l: { id: string; text: string }) => speakLine(c.id, l.id, l.text, () => lineEnded.current()),
+    (l: { id: string; text: string; src?: string }) => speakLine(c.id, l.id, l.text, () => lineEnded.current(), l.src),
     [c.id]
   );
   // Reads the current line if it hasn't been read yet.
@@ -545,15 +547,19 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
             {panel === "checkpoint" && <CheckpointPanel g={g} round={current} onClose={() => setPanel(null)} />}
             {panel === "hints" && (
               <HintsPanel
+                g={g}
                 round={current}
-                used={priv.hintsUsed[current.number] ?? 0}
-                onUse={() => {
-                  if ((priv.hintsUsed[current.number] ?? 0) >= 3) return;
+                onUse={async () => {
                   const n = priv.hintsUsed[current.number] ?? 0;
-                  setPriv((x) => ({ ...x, hintsUsed: { ...x.hintsUsed, [current.number]: (x.hintsUsed[current.number] ?? 0) + 1 } }));
+                  if (n >= 3) return;
+                  const h = await fetchHint(c.id, current.number, n + 1); // throws on failure; the panel shows it
+                  setPriv((x) => ({
+                    ...x,
+                    hintsUsed: { ...x.hintsUsed, [current.number]: Math.max(x.hintsUsed[current.number] ?? 0, n + 1) },
+                    hintTexts: { ...(x.hintTexts ?? {}), [`${current.number}-${n + 1}`]: h.text },
+                  }));
                   g.act({ t: "hint" });
-                  const spokenHint = c.narration.hints[current.number]?.[n];
-                  if (priv.voice && spokenHint) speakLine(c.id, spokenHint.id, spokenHint.text);
+                  if (priv.voice && h.voice) speakLine(c.id, h.voice.id, h.voice.text, undefined, h.voice.src);
                 }}
               />
             )}
@@ -643,7 +649,43 @@ function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose
   const [pick, setPick] = useState<string | null>(g.isHost ? null : s.suggest?.[g.me] ?? null);
   const solved = s.solved[round.number];
   const tries = s.wrongTries[round.number] ?? 0;
-  const ans = round.checkpoint.choices.find((ch) => ch.id === round.checkpoint.answer)!;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // a round closed before answers moved server-side: fetch its answer (and token) once
+  const [legacy, setLegacy] = useState<{ answer: string; explanation: string } | null>(null);
+  const known = s.answers?.[round.number] ?? legacy;
+  useEffect(() => {
+    if (!solved || s.answers?.[round.number]) return;
+    skipRound(c.id, round.number)
+      .then((res) => {
+        if (g.isHost) g.act({ t: "learn", round: round.number, res });
+        else if (res.answer) setLegacy({ answer: res.answer, explanation: res.explanation ?? "" });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solved, round.number]);
+  const ans = known ? round.checkpoint.choices.find((ch) => ch.id === known.answer) : undefined;
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    setErr("");
+    try {
+      await f();
+    } catch {
+      setErr("The Bureau could not be reached. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const submit = (choice: string) =>
+    run(async () => {
+      const res = await checkAnswer(c.id, round.number, choice);
+      g.act({ t: "answer", round: round.number, choice, res });
+    });
+  const giveUp = () =>
+    run(async () => {
+      const res = await skipRound(c.id, round.number);
+      g.act({ t: "skip", round: round.number, res });
+    });
   const last = s.lastAnswer && s.lastAnswer.round === round.number ? s.lastAnswer : null;
   const hasNext = c.rounds.some((r) => r.number === round.number + 1);
   const isLast = round.number === lastRound(c);
@@ -660,8 +702,8 @@ function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose
         <div>
           <div className="answer-box">
             <span className="stamp">{solved === "correct" ? "Correct" : "Answer shown"}</span>
-            <p style={{ margin: "14px 0 6px", fontFamily: "var(--display)", fontSize: 19 }}>{ans.label}</p>
-            <p style={{ margin: 0, color: "var(--text-2)" }}>{round.checkpoint.explanation}</p>
+            <p style={{ margin: "14px 0 6px", fontFamily: "var(--display)", fontSize: 19 }}>{ans?.label ?? "…"}</p>
+            <p style={{ margin: 0, color: "var(--text-2)" }}>{known?.explanation}</p>
           </div>
           <div style={{ marginTop: 18, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {hasNext && s.unlocked === round.number ? (
@@ -703,14 +745,15 @@ function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose
             ))}
           </div>
           {last && !last.correct && <p className="lookagain">Look again.</p>}
+          {err && <p className="lookagain">{err}</p>}
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap", alignItems: "center" }}>
             {g.isHost && (
-              <button className="btn primary" disabled={!pick} onClick={() => pick && g.act({ t: "answer", round: round.number, choice: pick })}>
-                Submit answer
+              <button className="btn primary" disabled={!pick || busy} onClick={() => pick && submit(pick)}>
+                {busy ? "Checking…" : "Submit answer"}
               </button>
             )}
             {g.isHost && tries >= 3 && (
-              <button className="btn" onClick={() => g.act({ t: "skip", round: round.number })}>Skip and show answer</button>
+              <button className="btn" disabled={busy} onClick={giveUp}>Skip and show answer</button>
             )}
             <span className="muted-dark" style={{ fontSize: 14 }}>
               {tries > 0 ? `${tries} wrong ${tries === 1 ? "try" : "tries"}${tries < 3 ? " · you can skip after 3" : ""}` : "No penalty for wrong answers"}
@@ -757,21 +800,54 @@ function ZoomBox({ zoom, children }: { zoom: number; children: React.ReactNode }
   );
 }
 
-function HintsPanel({ round, used, onUse }: { round: Round; used: number; onUse: () => void }) {
+function HintsPanel({ g, round, onUse }: { g: Game; round: Round; onUse: () => Promise<void> }) {
+  const { c, priv, setPriv } = g;
   const names = ["A nudge", "Where to look", "The answer to this round"];
+  const used = priv.hintsUsed[round.number] ?? 0;
+  const text = (lvl: number) => priv.hintTexts?.[`${round.number}-${lvl}`];
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // hints opened before they moved server-side have no stored text yet: fetch them again (already counted)
+  useEffect(() => {
+    for (let lvl = 1; lvl <= used; lvl++) {
+      if (text(lvl)) continue;
+      fetchHint(c.id, round.number, lvl)
+        .then((h) => setPriv((x) => ({ ...x, hintTexts: { ...(x.hintTexts ?? {}), [`${round.number}-${lvl}`]: h.text } })))
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.number, used]);
+  const open = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      await onUse();
+    } catch {
+      setErr("The hint could not be fetched. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div>
       <div className="eyebrow">Hints · Round {round.number}</div>
       <h2 className="sheet-h">{round.checkpoint.question}</h2>
       <p className="muted-dark" style={{ marginTop: -4 }}>Hints show only on this device and never name the killer. The report card counts them.</p>
       <ol className="hints">
-        {round.hints.map((h, i) => (
+        {names.map((name, i) => (
           <li key={i} className={i < used ? "shown" : ""}>
-            <div className="eyebrow">{names[i]}</div>
-            {i < used ? <p>{h}</p> : i === used ? <button className="btn sm" onClick={onUse} style={{ marginTop: 8 }}>Reveal hint {i + 1}</button> : <p className="muted-dark">Sealed</p>}
+            <div className="eyebrow">{name}</div>
+            {i < used ? (
+              <p>{text(i + 1) ?? "…"}</p>
+            ) : i === used ? (
+              <button className="btn sm" onClick={open} disabled={busy} style={{ marginTop: 8 }}>{busy ? "Opening…" : `Reveal hint ${i + 1}`}</button>
+            ) : (
+              <p className="muted-dark">Sealed</p>
+            )}
           </li>
         ))}
       </ol>
+      {err && <p className="lookagain">{err}</p>}
     </div>
   );
 }
@@ -937,6 +1013,28 @@ function AccusePanel({ g }: { g: Game }) {
   const here = g.online.filter((id) => s.players[id]);
   const voted = here.filter((id) => s.votes[id]).length;
   const myVoteSent = mine && mine.suspect === v.suspect && mine.method === v.method && mine.motive === v.motive;
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // the server only issues the verdict and the reveal against a token for every closed round
+  const accuse = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const tokens: Record<number, string> = { ...(s.tokens ?? {}) };
+      for (const r of c.rounds) {
+        if (tokens[r.number]) continue;
+        const res = await skipRound(c.id, r.number); // rounds closed before tokens existed
+        if (res.token) tokens[r.number] = res.token;
+        g.act({ t: "learn", round: r.number, res });
+      }
+      const result = await fetchVerdict(c.id, v, tokens);
+      g.act({ t: "accuse", vote: v, result });
+    } catch {
+      setErr("The Bureau could not be reached. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (s.finishedAt) return <p>The accusation has been made.</p>;
 
@@ -959,14 +1057,14 @@ function AccusePanel({ g }: { g: Game }) {
         )}
         {g.isHost &&
           (confirming ? (
-            <button className="btn primary" onClick={() => g.act({ t: "accuse", vote: v })}>Submit anyway</button>
+            <button className="btn primary" disabled={busy} onClick={accuse}>{busy ? "Filing…" : "Submit anyway"}</button>
           ) : (
             <button
               className="btn primary"
-              disabled={!complete}
-              onClick={() => (g.party && voted < here.length ? setConfirming(true) : g.act({ t: "accuse", vote: v }))}
+              disabled={!complete || busy}
+              onClick={() => (g.party && voted < here.length ? setConfirming(true) : accuse())}
             >
-              {g.party ? "Submit the room's accusation" : "Submit and close the file"}
+              {busy ? "Filing…" : g.party ? "Submit the room's accusation" : "Submit and close the file"}
             </button>
           ))}
         {g.party && (
@@ -974,6 +1072,7 @@ function AccusePanel({ g }: { g: Game }) {
             {confirming ? `Only ${voted} of ${here.length} at the table have voted.` : `${voted} of ${here.length} voted`}
           </span>
         )}
+        {err && <span className="lookagain" style={{ margin: 0 }}>{err}</span>}
       </div>
     </div>
   );
@@ -981,9 +1080,9 @@ function AccusePanel({ g }: { g: Game }) {
 
 function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
   const { c, s } = g;
-  const lines = c.narration.reveal;
+  const lines = s.result?.reveal ?? [];
   const step = s.revealStep;
-  if (!s.finishedAt) return null;
+  if (!s.finishedAt || !s.result) return null;
 
   if (step < lines.length) {
     return (
@@ -1007,12 +1106,12 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
   }
 
   const a = s.accusation;
-  const { parts, right, verdict } = score(c, a);
+  const { parts, right, verdict, solution, proofs } = s.result;
   const mins = s.finishedAt && s.startedAt ? Math.max(0, Math.round((s.finishedAt - s.startedAt) / 60000)) : 0;
   const hints = Object.values(s.hints).reduce((t, n) => t + n, 0);
   const skipped = Object.values(s.solved).filter((x) => x === "skipped").length;
   const suspect = c.suspects.find((x) => x.id === a?.suspect);
-  const real = c.suspects.find((x) => x.id === c.solution.suspect)!;
+  const real = c.suspects.find((x) => x.id === solution.suspect)!;
 
   return (
     <div>
@@ -1045,7 +1144,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
             <div className="serif" style={{ fontWeight: 700, marginBottom: 6 }}>How the table voted</div>
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5 }}>
               {Object.entries(s.votes).filter(([id]) => s.players[id]).map(([id, vote]) => (
-                <li key={id}>{s.players[id].name}: {c.suspects.find((x) => x.id === vote.suspect)?.name} {vote.suspect === c.solution.suspect ? "✓" : "✗"}</li>
+                <li key={id}>{s.players[id].name}: {c.suspects.find((x) => x.id === vote.suspect)?.name} {vote.suspect === solution.suspect ? "✓" : "✗"}</li>
               ))}
             </ul>
           </>
@@ -1053,9 +1152,17 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         <hr className="thin" />
         <div className="serif" style={{ fontWeight: 700, marginBottom: 6 }}>The clues that proved it</div>
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13.5 }}>
-          {c.solution.proofs.map((pr, k) => <li key={k} style={{ margin: "3px 0" }}>{pr.clue} <span className="muted">(Exh. {pr.exhibit})</span></li>)}
+          {proofs.map((pr, k) => <li key={k} style={{ margin: "3px 0" }}>{pr.clue} <span className="muted">(Exh. {pr.exhibit})</span></li>)}
         </ol>
       </div>
+      <RatingPrompt
+        caseId={c.id}
+        gameKey={String(s.finishedAt)}
+        mode={g.party ? "party" : "solo"}
+        players={Math.max(1, Object.keys(s.players).length)}
+        verdict={verdict}
+        minutes={mins}
+      />
       <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
         {g.isHost && <button className="btn" onClick={() => g.act({ t: "reveal", d: -lines.length })}>Replay the reveal</button>}
         <button className="btn" onClick={onClose}>Back to the evidence</button>

@@ -37,13 +37,12 @@ export function Kit({ c }: { c: CaseFile }) {
               <b>{r.envelope}</b> — {r.title}: Exhibits {r.files[0].exhibit}–{r.files[r.files.length - 1].exhibit}. {r.files.some((f) => f.type === "audio") && "(The voicemail page has a transcript; play it in the app if you like.)"}
             </li>
           ))}
-          <li>Fold the solution page in half and seal it. Do not open it until the reveal.</li>
           <li>Open the case on one phone or laptop. It runs the narrator, the checkpoints and the accusation.</li>
         </ol>
         <div className="serif" style={{ fontWeight: 700 }}>How a round works</div>
         <p>The narrator reads a short scene and tells you to open the next envelope. Spread its pages on the table and investigate together. When the group agrees, answer the checkpoint in the app. A right answer opens the next round. A wrong one simply says &ldquo;Look again&rdquo;. After three wrong tries you may skip.</p>
         <p>Hints are in the app, three per round, from a nudge to the round&apos;s answer. They never name the killer.</p>
-        <p>After the last envelope, the group makes one accusation: who, how and why. Then the narrator plays the reveal.</p>
+        <p>After the last envelope, the group makes one accusation: who, how and why. Then the narrator plays the reveal in the app. The solution is never printed, so nobody can peek.</p>
       </Sheet>
 
       {/* envelope labels */}
@@ -90,20 +89,6 @@ export function Kit({ c }: { c: CaseFile }) {
         </table>
       </Sheet>
 
-      {/* sealed solution */}
-      <Sheet>
-        <div style={{ border: "3px double var(--ink)", padding: 26, textAlign: "center" }}>
-          <div className="small" style={{ letterSpacing: ".25em" }}>CASE NO. {c.number}</div>
-          <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: ".1em", margin: "8px 0" }}>SOLUTION</div>
-          <span className="stamp" style={{ fontSize: 16 }}>Sealed — open only after the accusation</span>
-        </div>
-        <div style={{ marginTop: 160, transform: "rotate(180deg)" }}>
-          <p><b>Who:</b> {c.suspects.find((s) => s.id === c.solution.suspect)?.name}</p>
-          <p><b>How:</b> {c.accusation.methods.find((m) => m.id === c.solution.method)?.label}</p>
-          <p><b>Why:</b> {c.accusation.motives.find((m) => m.id === c.solution.motive)?.label}</p>
-          <ol className="small">{c.solution.proofs.map((p, i) => <li key={i}>{p.clue} (Exh. {p.exhibit})</li>)}</ol>
-        </div>
-      </Sheet>
       <p className="small no-print" style={{ textAlign: "center", color: "var(--text-3)" }}>Demo kit · purchased kits carry the buyer&apos;s name and order number on every page.</p>
     </div>
   );

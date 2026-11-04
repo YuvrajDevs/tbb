@@ -4,6 +4,8 @@ Everything else in the case is drawn in code. These are the only files the case 
 Drop each file at the exact path below and it appears in the app on the next page load; until then
 the exhibit shows a labelled placeholder and the game is fully playable. No video is used.
 
+For full art direction and ready-to-use prompts for every image, see [`IMAGE-BRIEF.md`](IMAGE-BRIEF.md).
+
 ## Cast (keep faces consistent across images)
 
 | Character | In 2026 | Look |

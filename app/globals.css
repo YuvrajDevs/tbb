@@ -562,3 +562,16 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .lclose .eyebrow { margin-bottom: 4px; }
 .lclose h2 { margin-bottom: 26px; }
 .ltype-top .stamp { white-space: nowrap; flex: none; }
+
+/* ===================== rating prompt (report card) ===================== */
+.rating { margin-top: 18px; border: 1px solid var(--line-2); background: var(--desk-2); padding: 18px 20px; }
+.rating-h { font-family: var(--display); font-size: 20px; margin: 6px 0 8px; }
+.rating-stars { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rating-star { background: none; border: 0; padding: 4px; font-size: 30px; line-height: 1; color: var(--line-2); cursor: pointer; transition: color .12s, transform .12s; min-width: 44px; min-height: 44px; }
+.rating-star.on { color: var(--manila); }
+.rating-star:hover { transform: translateY(-1px); }
+.rating-label { margin-left: 10px; font-style: italic; color: var(--text-2); }
+.rating-note { width: 100%; min-height: 80px; margin: 12px 0 12px; background: var(--desk); color: var(--text); border: 1px solid var(--line-2); padding: 10px 12px; font-family: var(--serif); font-size: 15px; resize: vertical; }
+.rating-note:focus { outline: 1px solid var(--manila-2); }
+.rating.done { display: flex; align-items: center; gap: 14px; color: var(--text-2); font-style: italic; }
+.rating.done .stamp { color: var(--manila); border-color: var(--manila); mix-blend-mode: normal; font-style: normal; }

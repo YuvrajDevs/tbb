@@ -75,8 +75,16 @@ exhibit shows a labelled placeholder, and narration falls back to the device's v
 
 ## Not yet built
 
-Payments, accounts and cross-device progress for solo, the watermarked ZIP download, and server-side
-answer protection (answers ship in the page in this build).
+Payments, accounts and cross-device progress for solo, and the watermarked ZIP download.
+
+## Answers stay on the server
+
+Checkpoint answers, hints, the solution and the reveal live in `lib/server/` (marked `server-only`, so
+the build fails if page code imports them) and are handed out by `POST /api/cases/<id>` one checkpoint
+at a time. Each closed round returns a signed token; the verdict and the reveal are only issued against a
+token for every round. Set `CASE_TOKEN_SECRET` in the deployment to sign them.
+
+Ratings after the reveal go to `POST /api/rate` and into the Supabase table `ratings` (insert-only).
 
 ## Tests
 

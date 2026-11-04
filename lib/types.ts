@@ -21,19 +21,43 @@ export interface Round {
   envelope: string;
   minutes: number;
   files: EvidenceFile[];
+  /** the answer, its explanation and the hints are server-side (lib/server); see CheckResult */
   checkpoint: {
     question: string;
     choices: Choice[];
-    answer: string;
-    explanation: string;
   };
-  hints: [string, string, string];
 }
 
 export interface NarrationLine {
   id: string; // e.g. "R2-03"
   speaker?: string;
   text: string;
+  /** audio path when it is not the default /cases/<id>/narration/<id>.mp3 (server-issued lines) */
+  src?: string;
+}
+
+/** What the server says about a checkpoint answer. `token` proves the round was closed, for the verdict. */
+export interface CheckResult {
+  correct: boolean;
+  answer?: string;
+  explanation?: string;
+  token?: string;
+}
+
+/** A hint handed out by the server: the words on screen and the narrator's casual version. */
+export interface HintResult {
+  text: string;
+  voice?: NarrationLine;
+}
+
+/** Everything the reveal and the report card need, issued by the server after the accusation. */
+export interface CaseResult {
+  solution: { suspect: string; method: string; motive: string };
+  proofs: { clue: string; exhibit: number }[];
+  reveal: NarrationLine[];
+  parts: [boolean, boolean, boolean];
+  right: number;
+  verdict: string;
 }
 
 /** what the player has (not) done when a quiet spell triggers a nudge */
@@ -66,21 +90,12 @@ export interface CaseFile {
     /** lines played when round N unlocks (keyed by round number) */
     rounds: Record<number, NarrationLine[]>;
     accusation: NarrationLine[];
-    reveal: NarrationLine[];
-    /** casual spoken versions of each round's three hints (id H-<round>-<n>), read when a hint is revealed */
-    hints: Record<number, NarrationLine[]>;
     /** casual nudges spoken after a quiet spell, chosen by situation */
     nudges: Record<NudgeKind, NarrationLine[]>;
   };
   accusation: {
     methods: Choice[];
     motives: Choice[];
-  };
-  solution: {
-    suspect: string;
-    method: string;
-    motive: string;
-    proofs: { clue: string; exhibit: number }[];
   };
 }
 

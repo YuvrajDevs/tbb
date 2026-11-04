@@ -38,7 +38,7 @@ function tts(text: string, done: () => void) {
 }
 
 /** Plays one line. `onEnd` runs only if the line plays to its end (not when stopped or replaced). */
-export function speakLine(caseId: string, id: string, text: string, onEnd?: () => void) {
+export function speakLine(caseId: string, id: string, text: string, onEnd?: () => void, src?: string) {
   stop();
   const mine = token;
   const done = () => {
@@ -46,7 +46,7 @@ export function speakLine(caseId: string, id: string, text: string, onEnd?: () =
     duckMusic(false);
     onEnd?.();
   };
-  const src = `/cases/${caseId}/narration/${id}.mp3`;
+  src ??= `/cases/${caseId}/narration/${id}.mp3`;
   if (missing.has(src)) {
     tts(text, done);
     return true;

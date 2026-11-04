@@ -32,7 +32,7 @@ const { ok, until, text } = L;
   await L.closePanel(p);
   await L.openPanel(p, 'Hints');
   await p.click('text=Reveal hint 1');
-  ok(await p.isVisible('.hints li.shown'), 'hint revealed from the tab bar');
+  ok(!!(await p.waitForSelector('.hints li.shown', { timeout: 10000 }).catch(() => null)), 'hint revealed from the tab bar');
   await L.closePanel(p);
   await p.click('[aria-label="Settings"]');
   ok(await p.isVisible('text=Round timer.'), 'settings open from the top bar');

@@ -31,12 +31,12 @@ const ok = (c, m) => { if (!c) throw new Error('FAIL: ' + m); console.log('ok -'
       await pg.click('.checkpoint-strip >> text=Answer');
       await pg.click('.choice >> text=Around 1:00 AM on Sunday');
       await pg.click('text=Submit answer');
-      ok(await pg.isVisible('text=Look again.'), 'wrong answer shows Look again');
+      ok(!!(await pg.waitForSelector('text=Look again.', { timeout: 10000 }).catch(() => null)), 'wrong answer shows Look again');
       await pg.click('.sheet-x');
       // hints
       await pg.click('text=Hints');
       await pg.click('text=Reveal hint 1');
-      ok(await pg.isVisible('.hints li.shown'), 'hint revealed');
+      ok(!!(await pg.waitForSelector('.hints li.shown', { timeout: 10000 }).catch(() => null)), 'hint revealed');
       await pg.click('.sheet-x');
       // narration next
       await pg.click('[aria-label="Next line"]');
@@ -69,14 +69,18 @@ const ok = (c, m) => { if (!c) throw new Error('FAIL: ' + m); console.log('ok -'
   for (let k = 0; k < 12; k++) await pg.click('.reveal >> text=Continue');
   await pg.waitForSelector('.reportcard');
   ok((await pg.textContent('.reportcard')).includes('Case solved'), 'report says Case solved');
+  // rating prompt under the report card (not sent, so tests never add ratings)
+  await pg.waitForSelector('.rating .rating-star');
+  await pg.click('.rating-star >> nth=3');
+  ok(await pg.isVisible('.rating-note'), 'rating prompt shows and asks for an optional note');
   await pg.screenshot({ path: '/tmp/bb-' + Date.now() + '.png' });
   // cover shows solved status
   await pg.goto(BASE + '/case/017');
   ok(await pg.isVisible('text=Review file'), 'cover shows Review file');
-  // all 34 exhibits render in the kit
+  // all 34 exhibits render in the kit, plus host guide, labels and case board (no printed solution)
   await pg.goto(BASE + '/case/017/kit'); await pg.waitForTimeout(800);
   const n = await pg.$$eval('.print-page', els => els.length);
-  ok(n === 34 + 4, `kit renders ${n} pages`);
+  ok(n === 34 + 3, `kit renders ${n} pages`);
   console.log('errors:', JSON.stringify(errs));
   await b.close();
 })().catch(e => { console.error(e.message); process.exit(1); });

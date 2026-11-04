@@ -1,4 +1,4 @@
-import type { CaseFile, NarrationLine } from "../types";
+import type { CaseFile, CaseResult, CheckResult, NarrationLine } from "../types";
 
 export type Vote = { suspect: string; method: string; motive: string };
 export type Player = { name: string; joinedAt: number };
@@ -40,6 +40,12 @@ export interface Shared {
   pointer?: { by: string; fileId: string; at: number } | null;
   /** split mode: files a holder has shown to everyone */
   shown?: string[];
+  /** answers and explanations of closed rounds, as issued by the server */
+  answers?: Record<number, { answer: string; explanation: string }>;
+  /** server-signed proof that each round was closed; the verdict is only issued against all of them */
+  tokens?: Record<number, string>;
+  /** the solution, the reveal and the score, issued by the server after the accusation */
+  result?: CaseResult | null;
 }
 
 export type ChatMsg = { id: string; by: string; text: string; at: number };
@@ -54,6 +60,8 @@ export interface Private {
   notes: string;
   suspects: Record<string, SuspectMark>;
   hintsUsed: Record<number, number>;
+  /** hint texts this device has been given, keyed "<round>-<level>" */
+  hintTexts?: Record<string, string>;
   voice: boolean;
   /** newest table-chat message this device has seen */
   chatReadAt?: number;
@@ -95,12 +103,15 @@ export type Action =
   | { t: "setMode"; mode: "shared" | "split" }
   | { t: "setTimer"; on: boolean }
   | { t: "line"; d: 1 | -1 }
-  | { t: "answer"; round: number; choice: string }
-  | { t: "skip"; round: number }
+  /** `res` is the server's judgement, fetched by the host before sending */
+  | { t: "answer"; round: number; choice: string; res: CheckResult }
+  | { t: "skip"; round: number; res: CheckResult }
+  /** stores the server's answer/token for a round that was closed before answers moved server-side */
+  | { t: "learn"; round: number; res: CheckResult }
   | { t: "unlock" }
   | { t: "hint" }
   | { t: "vote"; vote: Vote }
-  | { t: "accuse"; vote: Vote }
+  | { t: "accuse"; vote: Vote; result: CaseResult }
   | { t: "reveal"; d: number }
   | { t: "kick"; id: string }
   | { t: "handover"; id: string }
@@ -118,10 +129,10 @@ export interface Ctx {
   online: string[];
 }
 
-export function scriptLines(c: CaseFile, script: string): NarrationLine[] {
+export function scriptLines(c: CaseFile, script: string, s?: Shared | null): NarrationLine[] {
   if (script === "briefing") return c.narration.briefing;
   if (script === "accusation") return c.narration.accusation;
-  if (script === "reveal") return c.narration.reveal;
+  if (script === "reveal") return s?.result?.reveal ?? [];
   const n = Number(script.replace("round-", ""));
   return c.narration.rounds[n] ?? [];
 }
@@ -234,7 +245,7 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       return bump({ timerEnabled: a.on, roundStartedAt: a.on ? { ...s.roundStartedAt, [s.unlocked]: ctx.now } : s.roundStartedAt });
     }
     case "line": {
-      const n = scriptLines(c, s.narration.script).length;
+      const n = scriptLines(c, s.narration.script, s).length;
       const line = Math.max(0, Math.min(n - 1, s.narration.line + a.d));
       return line === s.narration.line ? s : bump({ narration: { ...s.narration, line } });
     }
@@ -242,25 +253,29 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       if (s.phase !== "play" || a.round !== s.unlocked || s.solved[a.round]) return s;
       const r = c.rounds.find((x) => x.number === a.round);
       if (!r || !r.checkpoint.choices.some((ch) => ch.id === a.choice)) return s;
-      const correct = r.checkpoint.answer === a.choice;
+      const correct = !!a.res?.correct;
       const lastAnswer = { round: a.round, choice: a.choice, correct, at: ctx.now };
       if (!correct) return bump({ lastAnswer, wrongTries: { ...s.wrongTries, [a.round]: (s.wrongTries[a.round] ?? 0) + 1 } });
       const final = a.round === lastRound(c);
       return bump({
         lastAnswer,
         solved: { ...s.solved, [a.round]: "correct" },
+        ...learned(s, a.round, a.res),
         narration: final ? { script: "accusation", line: 0 } : s.narration,
       });
     }
     case "skip": {
-      if (s.phase !== "play" || a.round !== s.unlocked || s.solved[a.round] || (s.wrongTries[a.round] ?? 0) < 3) return s;
+      if (s.phase !== "play" || a.round !== s.unlocked || s.solved[a.round] || (s.wrongTries[a.round] ?? 0) < 3 || !a.res?.answer) return s;
       const final = a.round === lastRound(c);
       return bump({
         lastAnswer: null,
         solved: { ...s.solved, [a.round]: "skipped" },
+        ...learned(s, a.round, a.res),
         narration: final ? { script: "accusation", line: 0 } : s.narration,
       });
     }
+    case "learn":
+      return s.solved[a.round] && a.res?.answer && !s.tokens?.[a.round] ? bump(learned(s, a.round, a.res)) : s;
     case "unlock": {
       const next = s.unlocked + 1;
       if (!s.solved[s.unlocked] || !c.rounds.some((r) => r.number === next)) return s;
@@ -281,24 +296,22 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       return bump({ votes: { ...s.votes, [actor]: a.vote } });
     }
     case "accuse": {
-      if (s.finishedAt || !allSolved(c, s)) return s;
-      return bump({ accusation: a.vote, finishedAt: ctx.now, revealStep: 0, narration: { script: "reveal", line: 0 } });
+      if (s.finishedAt || !allSolved(c, s) || !a.result?.reveal?.length) return s;
+      return bump({ accusation: a.vote, result: a.result, finishedAt: ctx.now, revealStep: 0, narration: { script: "reveal", line: 0 } });
     }
     case "reveal": {
       if (!s.finishedAt) return s;
-      const n = c.narration.reveal.length;
+      const n = s.result?.reveal.length ?? 0;
       const step = Math.max(0, Math.min(n, s.revealStep + a.d));
       return step === s.revealStep ? s : bump({ revealStep: step, narration: { script: "reveal", line: Math.min(step, n - 1) } });
     }
   }
 }
 
-export function score(c: CaseFile, a: Vote | null) {
-  const parts = a ? [a.suspect === c.solution.suspect, a.method === c.solution.method, a.motive === c.solution.motive] : [false, false, false];
-  const right = parts.filter(Boolean).length;
-  let verdict = "Case unsolved";
-  if (right === 3) verdict = "Case solved";
-  else if (parts[0]) verdict = "Right killer, wrong story";
-  else if (a?.suspect === "kapoor") verdict = "You found the fraud. You missed the hand.";
-  return { parts, right, verdict };
+/** what a closed round adds to the shared state: its answer for display and its token for the verdict */
+function learned(s: Shared, round: number, res: CheckResult): Partial<Shared> {
+  const out: Partial<Shared> = {};
+  if (res.answer) out.answers = { ...(s.answers ?? {}), [round]: { answer: res.answer, explanation: res.explanation ?? "" } };
+  if (res.token) out.tokens = { ...(s.tokens ?? {}), [round]: res.token };
+  return out;
 }

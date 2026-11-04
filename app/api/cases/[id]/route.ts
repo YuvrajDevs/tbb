@@ -1,0 +1,45 @@
+import { NextResponse } from "next/server";
+import { check, hint, skip, verdict, type Vote } from "@/lib/server/judge";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * POST /api/cases/<id>
+ *   { op: "check", round, choice }     -> CheckResult
+ *   { op: "skip", round }              -> CheckResult (answer shown)
+ *   { op: "hint", round, level }       -> HintResult
+ *   { op: "verdict", vote, tokens }    -> CaseResult, only with a token for every round
+ */
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
+  const round = Number(body.round);
+  const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 40) : "");
+  let out: unknown = null;
+  switch (body.op) {
+    case "check":
+      out = check(id, round, str(body.choice));
+      break;
+    case "skip":
+      out = skip(id, round);
+      break;
+    case "hint":
+      out = hint(id, round, Number(body.level));
+      break;
+    case "verdict": {
+      const v = (body.vote ?? {}) as Record<string, unknown>;
+      const vote: Vote = { suspect: str(v.suspect), method: str(v.method), motive: str(v.motive) };
+      const r = verdict(id, vote, (body.tokens ?? {}) as Record<string, unknown>);
+      if (r === "locked") return NextResponse.json({ error: "answer every checkpoint first" }, { status: 403 });
+      out = r;
+      break;
+    }
+  }
+  if (!out) return NextResponse.json({ error: "not found" }, { status: 404 });
+  return NextResponse.json(out, { headers: { "cache-control": "no-store" } });
+}
