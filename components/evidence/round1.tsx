@@ -133,6 +133,7 @@ export function ScenePhoto() {
       <div style={{ background: "#1b1611", padding: 10 }}>
         <ImageSlot
           file="exhibit-03-study.jpg"
+          ratio="3 / 2"
           dark
           label="Scene photograph"
           alt="The study at Hollow Pines from the doorway: the deceased seated in a leather armchair facing the fireplace, rug rucked toward the hearth, milk tumbler on the side table, radio on the bookshelf, numbered evidence markers 1 to 7."

@@ -89,7 +89,7 @@ export function EvidenceTag() {
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 22, alignItems: "center" }} className="tag-grid">
         <ImageSlot
           file="exhibit-17-ampoule.jpg"
-          ratio="6 / 5"
+          ratio="3 / 2"
           label="Evidence photograph"
           alt="Clear police evidence bag on cream card, holding scorched glass from a 10 ml ampoule: a body fragment with a partly burnt label reading '…ASSIUM CHLORI… INJ. 15% w/v 10ml, B.No. KC26…', a broken neck with a brown ring, ash dust, and a 1 cm scale."
         />

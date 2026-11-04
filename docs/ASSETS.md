@@ -16,6 +16,8 @@ For full art direction and ready-to-use prompts for every image, see [`IMAGE-BRI
 
 ## Photographs — `public/cases/017/media/`
 
+All five are in place (supplied 5 Nov 2026, no faces shown). The marker numbers on 3, the plate and recorder text on 13, and the label and tamper-strip text on 17 were added on top of the generated images so they match the documents exactly.
+
 All photos: realistic, documentary, no text or logos except where stated. Muted, natural colour;
 the page frames them, so no borders. JPG, long side 2000 px or more.
 

@@ -231,7 +231,7 @@ export function ServiceCard() {
         </div>
         <div>
           <div style={{ border: "1px solid var(--ink-2)", padding: 4, background: "#f1e9d8" }}>
-            <ImageSlot file="exhibit-33-id-photo.jpg" ratio="3 / 4" label="ID photo" alt="Passport photo, 2011: a woman of about thirty in a white nurse's uniform and cap, hair tied back." />
+            <ImageSlot file="exhibit-33-id-photo.jpg" ratio="1 / 1" label="ID photo" alt="Faded 2011 ID photo, cropped below the face: a young woman in a white nurse's uniform with a blank name badge, dark hair tied back." />
           </div>
           <div className="small" style={{ textAlign: "center", marginTop: 4 }}>Attested</div>
         </div>
@@ -271,9 +271,9 @@ export function WeddingPhoto() {
       <div style={{ background: "#fff", padding: "14px 14px 40px", boxShadow: "0 6px 18px rgba(0,0,0,.18)", transform: "rotate(-.6deg)" }}>
         <ImageSlot
           file="exhibit-34-wedding.jpg"
-          ratio="4 / 3"
+          ratio="3 / 2"
           label="Wedding photograph"
-          alt="Colour photo, February 2015, a garden wedding at Hollow Pines: Vikram in a cream sherwani and Meera in a red lehenga at the mandap. Beside them Dr. Anand Kapoor, younger and in a turban, his hand on Meera's shoulder, performing the kanyadaan."
+          alt="Colour photo, February 2015, taken from behind at a garden wedding at Hollow Pines: the groom in a cream sherwani and turban, the bride in a red lehenga, and beside her a man in a saffron turban with his hand on her shoulder, before a marigold mandap."
         />
       </div>
       <div style={{ marginTop: 22 }}>
