@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MusicHost />
         <ErrorReporter />
         <main>{children}</main>
-        {process.env.VERCEL === "1" && <Analytics />}
+        <Analytics />
       </body>
     </html>
   );
