@@ -231,7 +231,7 @@ export function ServiceCard() {
         </div>
         <div>
           <div style={{ border: "1px solid var(--ink-2)", padding: 4, background: "#f1e9d8" }}>
-            <ImageSlot file="exhibit-33-id-photo.jpg" ratio="1 / 1" label="ID photo" alt="Faded 2011 ID photo, cropped below the face: a young woman in a white nurse's uniform with a blank name badge, dark hair tied back." />
+            <ImageSlot file="exhibit-33-id-photo.jpg" ratio="4 / 5" label="ID photo" alt="Worn 2011 ID photo of a young woman in a white nurse's uniform and cap, with a small nose stud; water damage and scratches have worn away her eyes and upper face." />
           </div>
           <div className="small" style={{ textAlign: "center", marginTop: 4 }}>Attested</div>
         </div>
