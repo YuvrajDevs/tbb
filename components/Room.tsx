@@ -6,6 +6,7 @@ import { hollowPines } from "@/lib/cases/hollow-pines";
 import { NAME_KEY, roomNameKey, useRoomGame, type Game } from "@/lib/game/game";
 import { MAX_PLAYERS, sortedPlayers } from "@/lib/game/state";
 import { Desk } from "./Desk";
+import { accountsAvailable, useAuth } from "@/lib/account";
 
 
 export function Room({ code }: { code: string }) {
@@ -23,9 +24,21 @@ export function Room({ code }: { code: string }) {
     setReady(true);
   }, [code]);
 
+  // signed in: sit down under the account's name, no need to ask
+  const { ready: authReady, user, profile } = useAuth();
+  useEffect(() => {
+    if (!ready || name || !authReady || !user || !profile) return;
+    const n = profile.display_name.trim().slice(0, 24) || "Detective";
+    try {
+      localStorage.setItem(NAME_KEY, n);
+      localStorage.setItem(roomNameKey(code), JSON.stringify(n));
+    } catch {}
+    setName(n);
+  }, [ready, name, authReady, user, profile, code]);
+
   const { game, status } = useRoomGame(hollowPines, code, name);
 
-  if (!ready) return null;
+  if (!ready || (accountsAvailable && !authReady) || (user && !name)) return null;
 
   if (code.length !== 5) {
     return (

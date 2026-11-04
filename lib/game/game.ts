@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CaseFile } from "../types";
 import { emptyPrivate, MAX_PLAYERS, newShared, reduce, sortedPlayers, type Action, type Private, type Shared } from "./state";
 import { openTransport, transportKind, type Msg, type Transport } from "./transport";
+import { deleteProgress, loadProgress, saveProgress, useAuth } from "../account";
 
 export interface Game {
   c: CaseFile;
@@ -57,6 +58,7 @@ export function soloStatus(caseId: string): "New" | "In progress" | "Solved" {
 export function clearSolo(caseId: string) {
   remove(soloKey(caseId));
   remove(soloPrivKey(caseId));
+  void deleteProgress(caseId); // and the copy saved to the account, if signed in
 }
 
 function usePrivate(key: string | null) {
@@ -82,6 +84,7 @@ function usePrivate(key: string | null) {
 export function useSoloGame(c: CaseFile): Game | null {
   const [s, setS] = useState<Shared | null>(null);
   const { priv, setPriv } = usePrivate(soloPrivKey(c.id));
+  const { ready, user } = useAuth();
 
   useEffect(() => {
     const saved = read<Shared>("local", soloKey(c.id));
@@ -89,6 +92,41 @@ export function useSoloGame(c: CaseFile): Game | null {
     write("local", soloKey(c.id), st);
     setS(st);
   }, [c]);
+
+  // Signed in: the account holds the case too. Whichever copy has gone further wins; the other is updated.
+  const synced = useRef<string | null>(null);
+  // saving starts only once the account's copy has been read and compared, so a fresh game on a new
+  // device can never overwrite a case that went further elsewhere
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || !user || synced.current === user.id) return;
+    synced.current = user.id;
+    void loadProgress(c.id).then((remote) => {
+      const local = read<Shared>("local", soloKey(c.id));
+      if (remote && remote.state?.caseId === c.id && (!local || remote.state.v > local.v)) {
+        write("local", soloKey(c.id), remote.state);
+        setS(remote.state);
+        const h = remote.hints ?? {};
+        setPriv((p) => ({
+          ...p,
+          hintsUsed: { ...(h.hintsUsed ?? {}), ...Object.fromEntries(Object.entries(p.hintsUsed).map(([k, v]) => [k, Math.max(v, h.hintsUsed?.[Number(k)] ?? 0)])) },
+          hintTexts: { ...(h.hintTexts ?? {}), ...(p.hintTexts ?? {}) },
+        }));
+      } else if (local) {
+        const lp = read<Private>("local", soloPrivKey(c.id));
+        saveProgress(c.id, local, { hintsUsed: lp?.hintsUsed, hintTexts: lp?.hintTexts });
+      }
+      setLoadedFor(user.id);
+    }).catch(() => {
+      synced.current = null; // could not read the account's copy: keep playing locally, try again next time
+    });
+  }, [ready, user, c.id, setPriv]);
+
+  // every change is saved to the account a moment later
+  useEffect(() => {
+    if (!user || !s || loadedFor !== user.id) return;
+    saveProgress(c.id, s, { hintsUsed: priv.hintsUsed, hintTexts: priv.hintTexts });
+  }, [user, s, priv.hintsUsed, priv.hintTexts, c.id, loadedFor]);
 
   const act = useCallback(
     (a: Action) =>

@@ -1,6 +1,6 @@
 # The Blackwood Bureau — status and handoff
 
-Last updated: 4 Nov 2026. Branch: `ccr-896914d4-bekm4q` on `YuvrajDevs/tbb`. No pull request opened yet.
+Last updated: 4 Nov 2026. Branch: `main` on `YuvrajDevs/tbb`.
 
 Read with: the PRD (original PDF, not in the repo), `README.md`, `docs/CASE-017-BIBLE.md` (solution, spoilers),
 `docs/ASSETS.md` (media to supply), `docs/mockups/` (UI showcase images).

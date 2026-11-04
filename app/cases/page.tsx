@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Shelf } from "@/components/Shelf";
 import { SettingsButton } from "@/components/SoundSettings";
 import { SiteFooter } from "@/components/SiteFooter";
+import { AccountButton } from "@/components/SignIn";
 
 export const metadata = {
   title: "Case archive",
@@ -14,7 +15,10 @@ export default function CaseArchive() {
       <div className="wrap page-main">
         <nav className="archive-nav">
           <Link href="/" className="btn ghost back-link">← The Bureau</Link>
-          <SettingsButton />
+          <div className="nav-right">
+            <SettingsButton />
+            <AccountButton />
+          </div>
         </nav>
         <header className="archive-head">
           <div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearSolo, markRoomCreator, soloStatus } from "@/lib/game/game";
+import { loadProgress, useAuth } from "@/lib/account";
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function makeCode() {
@@ -18,9 +19,16 @@ export function CoverActions({ caseId }: { caseId: string }) {
   const [status, setStatus] = useState<string>("New");
   const [confirm, setConfirm] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
   useEffect(() => {
-    setStatus(soloStatus(caseId));
-  }, [caseId]);
+    const local = soloStatus(caseId);
+    setStatus(local);
+    // new device, signed in: the account may hold a case in progress
+    if (user && local === "New")
+      void loadProgress(caseId)
+        .then((p) => p && setStatus(p.state.finishedAt ? "Solved" : "In progress"))
+        .catch(() => {});
+  }, [caseId, user]);
 
   const darkBtn = { background: "var(--ink)", color: "var(--paper)", borderColor: "var(--ink)" };
   const lineBtn = { color: "var(--ink)", borderColor: "var(--brown)" };

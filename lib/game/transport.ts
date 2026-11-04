@@ -1,6 +1,7 @@
 "use client";
 
 import type { Action, Shared } from "./state";
+import { getSupabase } from "../supabase";
 
 export type Msg =
   | { t: "hb"; from: string; name: string; v?: number; nonce?: string; since?: number }
@@ -28,8 +29,7 @@ export async function openTransport(code: string, onMsg: (m: Msg) => void, onSta
   const name = `bb-room-${code}`;
 
   if (transportKind === "supabase") {
-    const { createClient } = await import("@supabase/supabase-js");
-    const sb = createClient(SUPABASE_URL!, SUPABASE_KEY!, { realtime: { params: { eventsPerSecond: 20 } } });
+    const sb = (await getSupabase())!;
     const ch = sb.channel(name, { config: { broadcast: { self: false, ack: false } } });
     ch.on("broadcast", { event: "m" }, ({ payload }) => onMsg(payload as Msg));
     await new Promise<void>((resolve) => {

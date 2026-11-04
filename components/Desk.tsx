@@ -10,6 +10,7 @@ import { checkAnswer, fetchHint, fetchVerdict, skipRound } from "@/lib/game/api"
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { RatingPrompt } from "./RatingPrompt";
+import { recordFinish, useAuth } from "@/lib/account";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
@@ -129,6 +130,24 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       setPanel((p) => (p === "checkpoint" || p === "hints" ? null : p));
     }
   }, [s.unlocked]);
+
+  // signed in: file the closed case in the player's history (once per game; every player in a room gets theirs)
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user || !s.finishedAt || !s.result) return;
+    const mins = s.startedAt ? Math.max(0, Math.round((s.finishedAt - s.startedAt) / 60000)) : null;
+    void recordFinish({
+      case_id: c.id,
+      mode: g.party ? "party" : "solo",
+      verdict: s.result.verdict,
+      correct: s.result.right,
+      minutes: mins,
+      hints: Object.values(s.hints).reduce((t, n) => t + n, 0),
+      players: Math.max(1, Object.keys(s.players).length),
+      finished_at: new Date(s.finishedAt).toISOString(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, s.finishedAt, !!s.result]);
 
   const lastFinished = useRef(s.finishedAt);
   useEffect(() => {

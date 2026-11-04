@@ -103,3 +103,19 @@ PORT=8787 RELAY_LATENCY=120 RELAY_JITTER=150 RELAY_DROP=0.05 node scripts/relay.
 NEXT_PUBLIC_ROOM_RELAY=http://localhost:8787 npm run build && npm start &
 BASE=http://localhost:3000 npm run test:e2e
 ```
+
+## Accounts (Google sign-in)
+
+Players sign in with Google through Supabase Auth. An account keeps a profile (the name used in party
+rooms), saved solo progress (`solo_progress`, synced across devices; whichever copy went further wins) and
+closed cases (`case_history`, shown on `/account`). Every table is private to its owner (row level
+security). Private notes stay on the device.
+
+Sign-in is **required to play** (desk, rooms, print kit) only when `NEXT_PUBLIC_REQUIRE_SIGNIN=true`.
+Leave it unset until Google sign-in is set up and tested; the landing page, archive and case covers are
+always open.
+
+Setup: Google Cloud OAuth client (web) with redirect URI `https://<project>.supabase.co/auth/v1/callback`;
+Supabase → Authentication → Providers → Google (client ID and secret); Supabase → Authentication → URL
+Configuration: Site URL = the live site, Redirect URLs = `https://<site>/auth/callback` and
+`http://localhost:3000/auth/callback`.

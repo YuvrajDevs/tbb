@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cases } from "@/lib/cases/hollow-pines";
 import { SiteFooter } from "@/components/SiteFooter";
+import { AccountButton } from "@/components/SignIn";
 
 const c = cases["017"];
 const exhibits = c.rounds.reduce((n, r) => n + r.files.length, 0);
@@ -80,7 +81,10 @@ export default function Landing() {
             <a href="#cases">Our cases</a>
             <a href="#play">Ways to play</a>
           </nav>
-          <Link href="/cases" className="btn primary sm">Case archive</Link>
+          <div className="nav-right">
+            <AccountButton compact />
+            <Link href="/cases" className="btn primary sm">Case archive</Link>
+          </div>
         </div>
       </header>
 
