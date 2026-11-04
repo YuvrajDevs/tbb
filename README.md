@@ -111,9 +111,10 @@ rooms), saved solo progress (`solo_progress`, synced across devices; whichever c
 closed cases (`case_history`, shown on `/account`). Every table is private to its owner (row level
 security). Private notes stay on the device.
 
-Sign-in is **required to play** (desk, rooms, print kit) only when `NEXT_PUBLIC_REQUIRE_SIGNIN=true`.
-Leave it unset until Google sign-in is set up and tested; the landing page, archive and case covers are
-always open.
+Sign-in is **required to play** (desk, rooms, print kit; the case cover asks visitors to sign in). The
+landing page, archive and case covers stay open. `NEXT_PUBLIC_REQUIRE_SIGNIN=false` turns the requirement off:
+the automated tests build with it (`NEXT_PUBLIC_REQUIRE_SIGNIN=false npm run build`), and it is the emergency
+switch if Google sign-in ever breaks.
 
 Setup: Google Cloud OAuth client (web) with redirect URI `https://<project>.supabase.co/auth/v1/callback`;
 Supabase → Authentication → Providers → Google (client ID and secret); Supabase → Authentication → URL

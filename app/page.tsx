@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cases } from "@/lib/cases/hollow-pines";
 import { SiteFooter } from "@/components/SiteFooter";
-import { AccountButton } from "@/components/SignIn";
+import { HeroActions, LandingNavActions } from "@/components/LandingActions";
 
 const c = cases["017"];
 const exhibits = c.rounds.reduce((n, r) => n + r.files.length, 0);
@@ -81,10 +81,7 @@ export default function Landing() {
             <a href="#cases">Our cases</a>
             <a href="#play">Ways to play</a>
           </nav>
-          <div className="nav-right">
-            <AccountButton compact />
-            <Link href="/cases" className="btn primary sm">Case archive</Link>
-          </div>
+          <LandingNavActions />
         </div>
       </header>
 
@@ -99,10 +96,7 @@ export default function Landing() {
             solve them for you. We hand you the file, every statement, record and photograph, and we wait for your
             report.
           </p>
-          <div className="lhero-cta">
-            <Link href="/cases" className="btn primary">Open the case archive</Link>
-            <Link href="/room" className="btn">Join a party room</Link>
-          </div>
+          <HeroActions />
           <div className="lhero-facts">
             <span>{c.players} players</span>
             <span>{c.playTime}</span>

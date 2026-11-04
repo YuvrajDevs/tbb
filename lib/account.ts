@@ -7,11 +7,12 @@ import type { Shared } from "./game/state";
 
 /*
  * Accounts: Google sign-in through Supabase Auth, a profile (name), saved solo progress and case history.
- * Sign-in is required to play only when NEXT_PUBLIC_REQUIRE_SIGNIN is "true", so it can be switched on
- * once Google sign-in has been set up and checked.
+ * Sign-in is required to play unless NEXT_PUBLIC_REQUIRE_SIGNIN is "false" (used for automated tests, and
+ * as an emergency switch if sign-in ever breaks).
  */
 
-export const signInRequired = supabaseConfigured && process.env.NEXT_PUBLIC_REQUIRE_SIGNIN === "true";
+// required by default; NEXT_PUBLIC_REQUIRE_SIGNIN="false" turns it off (test builds, or an emergency)
+export const signInRequired = supabaseConfigured && process.env.NEXT_PUBLIC_REQUIRE_SIGNIN !== "false";
 export const accountsAvailable = supabaseConfigured;
 
 export type Profile = { id: string; display_name: string; avatar_url: string | null };
