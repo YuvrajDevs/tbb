@@ -7,6 +7,12 @@ export function generateStaticParams() {
   return Object.keys(cases).map((id) => ({ id }));
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const c = cases[(await params).id];
+  if (!c) return { title: "Case not found" };
+  return { title: `Case No. ${c.number} · ${c.title}`, description: `${c.subtitle} ${c.genre}, ${c.players} players, ${c.playTime.toLowerCase()}.` };
+}
+
 export default async function CasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const c = cases[id];

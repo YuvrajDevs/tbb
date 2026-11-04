@@ -9,7 +9,7 @@ Read with: the PRD (original PDF, not in the repo), `README.md`, `docs/CASE-017-
 
 A web detective game played as an official case file (Next.js 15, React 19, TypeScript, no UI library).
 Solo or party room for 2 to 6. One complete case: **No. 017 — The Silence at Hollow Pines**
-(5 envelopes, 34 exhibits, about 2 hours, killer is Meera; see the bible).
+(5 envelopes, 34 exhibits, up to 1 hour, killer is Meera; see the bible).
 
 Design brief from the owner: minimal, dark, serious; only black, white, brown and cream; serif type
 (Times New Roman / Libre Baskerville), Courier Prime for typed documents, Caveat for handwriting.

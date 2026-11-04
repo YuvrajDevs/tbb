@@ -8,7 +8,7 @@ export const hollowPines: CaseFile = {
   subtitle: "A death in the study, a doctor at the door, and a clock that nobody checked.",
   genre: "Classic murder",
   players: "1 to 6",
-  playTime: "About 2 hours",
+  playTime: "Up to 1 hour",
   price: "Free",
   dateOpened: "11 October 2026",
   location: "Hollow Pines Estate, Camel's Back Road, Mussoorie, Uttarakhand",
@@ -26,7 +26,7 @@ export const hollowPines: CaseFile = {
       number: 1,
       title: "The Morning After",
       envelope: "Envelope 1",
-      minutes: 25,
+      minutes: 12,
       files: [
         { id: "r1-memo", exhibit: 1, name: "Bureau assignment memo.pdf", type: "document", date: "11 Oct 2026" },
         { id: "r1-inquest", exhibit: 2, name: "Police inquest report.pdf", type: "document", date: "11 Oct 2026" },
@@ -50,7 +50,7 @@ export const hollowPines: CaseFile = {
       number: 2,
       title: "The Household",
       envelope: "Envelope 2",
-      minutes: 25,
+      minutes: 12,
       files: [
         { id: "r2-meera", exhibit: 8, name: "Statement — Meera Rathore.pdf", type: "statement", date: "11 Oct 2026" },
         { id: "r2-arjun", exhibit: 9, name: "Statement — Arjun Rathore.pdf", type: "statement", date: "11 Oct 2026" },
@@ -76,7 +76,7 @@ export const hollowPines: CaseFile = {
       number: 3,
       title: "What the Body Said",
       envelope: "Envelope 3",
-      minutes: 25,
+      minutes: 12,
       files: [
         { id: "r3-pm", exhibit: 16, name: "Post-mortem report.pdf", type: "document", date: "12 Oct 2026" },
         { id: "r3-tag", exhibit: 17, name: "Evidence tag — fireplace fragment.jpg", type: "photo", date: "12 Oct 2026" },
@@ -107,7 +107,7 @@ export const hollowPines: CaseFile = {
       number: 4,
       title: "The Ledger",
       envelope: "Envelope 4",
-      minutes: 20,
+      minutes: 12,
       files: [
         { id: "r4-bank", exhibit: 22, name: "Trust bank statement, annotated.pdf", type: "record", date: "Sep 2026" },
         { id: "r4-mehta", exhibit: 23, name: "Letter — Adv. Harish Mehta.pdf", type: "document", date: "07 Oct 2026" },
@@ -130,7 +130,7 @@ export const hollowPines: CaseFile = {
       number: 5,
       title: "The Wrong Clock",
       envelope: "Envelope 5",
-      minutes: 25,
+      minutes: 12,
       files: [
         { id: "r5-nvr", exhibit: 28, name: "Service report — gate camera recorder.pdf", type: "record", date: "14 Oct 2026" },
         { id: "r5-gatebook", exhibit: 29, name: "Chowkidar's gate register.jpg", type: "document", date: "10 Oct 2026" },

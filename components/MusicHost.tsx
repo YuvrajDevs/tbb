@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { startMusic, stopMusic } from "@/lib/game/sound";
+import { startMusicWhenAllowed, stopMusic } from "@/lib/game/sound";
 
 /**
  * Background music for the whole app (shelf, case cover, room lobby, desk). Mounted once in the root
@@ -13,7 +13,7 @@ export function MusicHost() {
   const silent = path?.endsWith("/kit");
   useEffect(() => {
     if (silent) stopMusic();
-    else startMusic();
+    else startMusicWhenAllowed();
   }, [silent]);
   return null;
 }

@@ -10,8 +10,9 @@ const ok = (cond, msg) => {
   console.log('ok -', msg);
 };
 
+// muted: tests must never play narration or music on the machine running them
 async function launch() {
-  return chromium.launch();
+  return chromium.launch({ args: ['--mute-audio'] });
 }
 
 /** A player's device. opts: { phone, skewMs } */

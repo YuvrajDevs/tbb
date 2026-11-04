@@ -3,7 +3,7 @@
 *Open the file. Find the truth.*
 
 A detective mystery played as an official case file, solo or as a party room. This build ships one
-complete case, **No. 017 — The Silence at Hollow Pines** (5 envelopes, 34 exhibits, about 2 hours).
+complete case, **No. 017 — The Silence at Hollow Pines** (5 envelopes, 34 exhibits, up to 1 hour).
 
 ## Run
 

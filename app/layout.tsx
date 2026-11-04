@@ -2,9 +2,25 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { MusicHost } from "@/components/MusicHost";
 
+const SITE =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+const DESCRIPTION =
+  "A detective case file you solve yourself: real statements, records and photographs, a narrator, and five sealed envelopes. Play solo, with friends anywhere in a party room, or print it for game night.";
+
 export const metadata: Metadata = {
-  title: "The Blackwood Bureau",
-  description: "Open the file. Find the truth.",
+  metadataBase: new URL(SITE),
+  title: { default: "The Blackwood Bureau · Open the file. Find the truth.", template: "%s · The Blackwood Bureau" },
+  description: DESCRIPTION,
+  applicationName: "The Blackwood Bureau",
+  openGraph: {
+    type: "website",
+    siteName: "The Blackwood Bureau",
+    title: "The Blackwood Bureau · Open the file. Find the truth.",
+    description: DESCRIPTION,
+    locale: "en_IN",
+  },
+  twitter: { card: "summary_large_image", title: "The Blackwood Bureau", description: DESCRIPTION },
 };
 
 export const viewport: Viewport = {

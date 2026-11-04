@@ -137,6 +137,26 @@ export function startMusic() {
   if (settings.music > 0) music.play().catch(unlockOnGesture);
 }
 
+// Browsers only allow sound after the visitor interacts, so the 1.7 MB track is not even fetched until
+// then: the first tap, click or key on any page starts it, and later pages start it straight away.
+let interacted = false;
+let waiting = false;
+export function startMusicWhenAllowed() {
+  if (typeof window === "undefined") return;
+  wanted = true;
+  if (interacted) return startMusic();
+  if (waiting) return;
+  waiting = true;
+  const evs = ["pointerdown", "keydown", "touchstart"] as const;
+  const go = () => {
+    evs.forEach((e) => window.removeEventListener(e, go, true));
+    waiting = false;
+    interacted = true;
+    if (wanted) startMusic();
+  };
+  evs.forEach((e) => window.addEventListener(e, go, { capture: true, passive: true }));
+}
+
 export function stopMusic() {
   wanted = false;
   music?.pause();

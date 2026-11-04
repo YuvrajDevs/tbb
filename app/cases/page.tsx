@@ -3,7 +3,10 @@ import { Shelf } from "@/components/Shelf";
 import { SettingsButton } from "@/components/SoundSettings";
 import { SiteFooter } from "@/components/SiteFooter";
 
-export const metadata = { title: "Case archive · The Blackwood Bureau" };
+export const metadata = {
+  title: "Case archive",
+  description: "The Bureau's open case files. Play solo, in a party room for 2 to 6, or print the kit for game night.",
+};
 
 export default function CaseArchive() {
   return (

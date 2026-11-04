@@ -63,7 +63,7 @@ const WAYS = [
 
 const FAQ = [
   ["Do we need to download anything?", "No. Cases play in the browser on a phone, tablet or computer. Party rooms work across separate devices."],
-  ["How long does a case take?", `About ${c.playTime.toLowerCase().replace("about ", "")} for a group. Solo players often take a little longer, and can stop at any time.`],
+  ["How long does a case take?", "A case can take up to an hour. Solo progress is saved on your device, so you can stop and pick it up again later."],
   ["Will the hints spoil it?", "Hints are sealed in three levels and show only on the device that asks. They never name the killer."],
   ["Are the cases real?", "No. Every character, place and document in the Bureau's files is fictional."],
 ];
