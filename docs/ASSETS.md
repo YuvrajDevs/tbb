@@ -31,23 +31,23 @@ the page frames them, so no borders. JPG, long side 2000 px or more.
 
 ## Audio — `public/cases/017/media/`
 
-In place (5 Nov 2026). Kabir's lines were generated in VoiceStudio and cloned from one take so he is one voice; the relative's line is a second voice, spoken normally and close to the phone. The sangeet (bhangra dhol, film-style chord loop, crowd chatter, cheers and claps) is synthesised, mixed on the script's timings and passed through a phone-line filter (300–3400 Hz, 8 kHz). MP3 64 kbps mono, 38.4 s.
+In place (5 Nov 2026). Kabir's lines were generated in VoiceStudio and cloned from one take so he is one voice; the relative's line is a second voice, spoken normally and close to the phone. The background is "Bollywood Punjabi Music Bhangra Beat" by aar_music (Pixabay, Pixabay licence), muffled as if from the next room, under synthesised crowd chatter and claps, with short pauses between lines, and passed through a phone-line filter (300–3400 Hz, 8 kHz). MP3 64 kbps mono, 18.6 s.
 
 | File | Length | Exhibit | Content |
 | --- | --- | --- | --- |
-| `exhibit-20-voicemail.mp3` | ~38 s | 20, voicemail | Kabir Sethi (48, Delhi-Punjabi accent, tense, slightly drunk-tired) leaving a phone voicemail from a loud wedding sangeet: dhol and film music behind him the whole time. Script below. Phone-line EQ. |
+| `exhibit-20-voicemail.mp3` | ~18 s | 20, voicemail | Kabir Sethi (48, Delhi-Punjabi accent, tense, slightly drunk-tired) leaving a phone voicemail from a loud wedding sangeet: dhol and film music behind him the whole time. Script below. Phone-line EQ. |
 
-Voicemail script (timings approximate):
+Voicemail script (as recorded):
 
 ```
-00:00  [dhol and music, crowd]
-00:02  Vikram, it's Kabir. Again.
-00:05  Look, I know you're angry about the email. I shouldn't have written it like that.
-00:11  But pick up, yaar. We need to talk before Monday. Before you say anything to anyone.
-00:19  Call me back. Tonight, please.
-00:23  [someone shouts nearby: "Kabir bhaiya, photo!"]
-00:27  I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me.
-00:38  [end]
+00:00  [bhangra music and crowd]
+00:01  Vikram, it's Kabir. Again.
+00:03  Look, I know you're angry about the email. I shouldn't have written it like that.
+00:07  But pick up, yaar. We need to talk before Monday. Before you say anything to anyone.
+00:11  Call me back. Tonight, please.
+00:13  [someone beside him: "Kabir bhaiya, photo!"]
+00:14  I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me.
+00:18  [end]
 ```
 
 ## Narration — `public/cases/017/narration/`

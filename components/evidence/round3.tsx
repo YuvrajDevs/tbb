@@ -250,14 +250,14 @@ export function BarReceipt() {
 }
 
 const VM_LINES: [string, string][] = [
-  ["00:00", "[Loud dhol and film music in background. Crowd noise.]"],
-  ["00:02", "Vikram, it's Kabir. Again."],
-  ["00:05", "Look, I know you're angry about the email. I shouldn't have written it like that."],
-  ["00:11", "But pick up, yaar. We need to talk before Monday. Before you say anything to anyone."],
-  ["00:19", "Call me back. Tonight, please."],
-  ["00:23", "[Pause. Someone shouts 'Kabir bhaiya, photo!']"],
-  ["00:27", "I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me."],
-  ["00:38", "[End of message]"],
+  ["00:00", "[Loud bhangra music and crowd noise in background.]"],
+  ["00:01", "Vikram, it's Kabir. Again."],
+  ["00:03", "Look, I know you're angry about the email. I shouldn't have written it like that."],
+  ["00:07", "But pick up, yaar. We need to talk before Monday. Before you say anything to anyone."],
+  ["00:11", "Call me back. Tonight, please."],
+  ["00:13", "[Someone beside him: 'Kabir bhaiya, photo!']"],
+  ["00:14", "I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me."],
+  ["00:18", "[End of message]"],
 ];
 
 export function Voicemail() {
@@ -266,13 +266,13 @@ export function Voicemail() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
         <div>
           <div className="serif" style={{ fontSize: 18, fontWeight: 700 }}>AUDIO EXHIBIT — VOICEMAIL</div>
-          <div className="small mono">VM_20261010_221104.m4a · 00:38 · AAC 64 kbps mono</div>
+          <div className="small mono">VM_20261010_221104.m4a · 00:18 · AAC 64 kbps mono</div>
           <div className="small">From: Kabir Sethi (+91 98970 21460) · To: Vikram Rathore · Left: Sat 10.10.2026, 22:11</div>
         </div>
         <Stamp rotate={4} size={11}>Transcribed</Stamp>
       </div>
       <hr className="double" />
-      <AudioSlot file="exhibit-20-voicemail.mp3" seconds={38} />
+      <AudioSlot file="exhibit-20-voicemail.mp3" seconds={19} />
       <div className="serif" style={{ fontWeight: 700, marginTop: 16 }}>Transcript</div>
       <table style={{ marginTop: 6 }}>
         <tbody>
