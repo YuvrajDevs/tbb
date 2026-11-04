@@ -83,7 +83,7 @@ export function Room({ code }: { code: string }) {
       <Shell>
         <h1 className="room-h">You were removed from this room</h1>
         <p className="muted-dark">Ask the host for a new invite if this was a mistake.</p>
-        <Link className="btn" href="/">Case archive</Link>
+        <Link className="btn" href="/cases">Case archive</Link>
       </Shell>
     );
   }
@@ -93,7 +93,7 @@ export function Room({ code }: { code: string }) {
       <Shell>
         <h1 className="room-h">This room is full</h1>
         <p className="muted-dark">A room holds up to {MAX_PLAYERS} players.</p>
-        <Link className="btn" href="/">Case archive</Link>
+        <Link className="btn" href="/cases">Case archive</Link>
       </Shell>
     );
   }
@@ -109,13 +109,13 @@ export function Room({ code }: { code: string }) {
   }
 
   if (game.s.phase === "lobby") return <Lobby g={game} />;
-  return <Desk g={game} exitHref="/" />;
+  return <Desk g={game} exitHref="/cases" />;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 80, maxWidth: 640 }}>
-      <Link href="/" className="btn ghost" style={{ paddingLeft: 0 }}>← Case archive</Link>
+      <Link href="/cases" className="btn ghost" style={{ paddingLeft: 0 }}>← Case archive</Link>
       <div style={{ marginTop: 40 }}>{children}</div>
     </div>
   );

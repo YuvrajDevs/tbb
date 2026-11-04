@@ -6,7 +6,8 @@ import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
 import { briefPlaying, isSpeaking, speakLine, stopLines, stopNarration } from "@/lib/game/narrator";
-import { playClick, playPageTurn, setSound, useSound } from "@/lib/game/sound";
+import { playClick, playPageTurn } from "@/lib/game/sound";
+import { SoundControls } from "./SoundSettings";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
@@ -860,7 +861,6 @@ function NotebookPanel({ g }: { g: Game }) {
 
 function SettingsPanel({ g }: { g: Game }) {
   const { s, priv, setPriv } = g;
-  const sound = useSound();
   return (
     <div>
       <div className="eyebrow">Settings</div>
@@ -876,16 +876,7 @@ function SettingsPanel({ g }: { g: Game }) {
         <input type="checkbox" checked={priv.voice} onChange={() => { if (priv.voice) stopNarration(); setPriv((x) => ({ ...x, voice: !x.voice })); }} />
         <span><b>Narrator voice{g.party ? " on this device" : ""}.</b> Reads each line aloud. Captions always show.</span>
       </label>
-      <label className="toggle range">
-        <span>
-          <b>Background music{g.party ? " on this device" : ""}.</b> {Math.round(sound.music * 100)}%{sound.music === 0 ? " (off)" : ""}. It softens while the narrator speaks.
-          <input type="range" min={0} max={100} step={5} value={Math.round(sound.music * 100)} onChange={(e) => setSound({ music: Number(e.target.value) / 100 })} aria-label="Background music volume" />
-        </span>
-      </label>
-      <label className="toggle">
-        <input type="checkbox" checked={sound.sfx} onChange={() => setSound({ sfx: !sound.sfx })} />
-        <span><b>Sound effects.</b> A page turn when you open a file, a click when you open a folder.</span>
-      </label>
+      <SoundControls party={g.party} />
     </div>
   );
 }
@@ -1117,7 +1108,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
       <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
         {g.isHost && <button className="btn" onClick={() => g.act({ t: "reveal", d: -lines.length })}>Replay the reveal</button>}
         <button className="btn" onClick={onClose}>Back to the evidence</button>
-        <Link className="btn ghost" href="/">Case archive</Link>
+        <Link className="btn ghost" href="/cases">Case archive</Link>
       </div>
     </div>
   );
