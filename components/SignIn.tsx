@@ -56,7 +56,10 @@ export function SignInGate({ children, what = "open this case" }: { children: Re
             table follow you to any phone or computer.
           </p>
           <GoogleButton />
-          <p className="gate-small">We only use your name and email from Google. Nothing is posted anywhere.</p>
+          <p className="gate-small">
+            We only use your name, email and picture from Google, and never post anything. By continuing you agree to the{" "}
+            <Link href="/terms">terms</Link> and <Link href="/privacy">privacy policy</Link>.
+          </p>
         </div>
       </div>
     </div>

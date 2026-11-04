@@ -46,6 +46,9 @@ export function CoverActions({ caseId }: { caseId: string }) {
           <h3>Sign in to take this case</h3>
           <p>Play solo, open a party room for friends, or print the kit for game night. Your progress and closed cases are kept on your account.</p>
           <GoogleButton />
+          <p className="cover-legal">
+            By continuing you agree to the <Link href="/terms">terms</Link> and <Link href="/privacy">privacy policy</Link>.
+          </p>
         </div>
       </div>
     );

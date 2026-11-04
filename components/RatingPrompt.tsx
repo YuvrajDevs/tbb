@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { sendRating, signInWithGoogle, useAuth } from "@/lib/account";
 
 /**
- * Shown under the report card. Each device rates once per finished game; the rating goes to /api/rate.
+ * Shown under the report card. Signed-in players rate once per finished game; the rating is filed
+ * against their account (anyone signed out is asked to sign in first).
  */
 export function RatingPrompt({ caseId, gameKey, mode, players, verdict, minutes }: {
   caseId: string;
@@ -19,6 +21,7 @@ export function RatingPrompt({ caseId, gameKey, mode, players, verdict, minutes 
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
   const [state, setState] = useState<"ask" | "sending" | "done" | "error">("ask");
+  const { user } = useAuth();
   useEffect(() => {
     try {
       if (window.localStorage.getItem(storeKey)) setState("done");
@@ -29,12 +32,8 @@ export function RatingPrompt({ caseId, gameKey, mode, players, verdict, minutes 
     if (!stars) return;
     setState("sending");
     try {
-      const r = await fetch("/api/rate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ caseId, stars, comment, mode, players, verdict, minutes }),
-      });
-      if (!r.ok) throw new Error();
+      const ok = await sendRating({ caseId, gameAt: Number(gameKey), stars, comment, mode, players, verdict, minutes });
+      if (!ok) throw new Error();
       try {
         window.localStorage.setItem(storeKey, String(stars));
       } catch {}
@@ -87,9 +86,13 @@ export function RatingPrompt({ caseId, gameKey, mode, players, verdict, minutes 
             aria-label="Comment (optional)"
           />
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <button className="btn primary sm" onClick={send} disabled={state === "sending"}>
-              {state === "sending" ? "Sending…" : "Send rating"}
-            </button>
+            {user ? (
+              <button className="btn primary sm" onClick={send} disabled={state === "sending"}>
+                {state === "sending" ? "Sending…" : "Send rating"}
+              </button>
+            ) : (
+              <button className="btn primary sm" onClick={() => signInWithGoogle()}>Sign in to send your rating</button>
+            )}
             {state === "error" && <span className="lookagain" style={{ margin: 0 }}>It did not send. Try again.</span>}
           </div>
         </>

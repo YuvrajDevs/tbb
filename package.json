@@ -11,7 +11,9 @@
     "relay": "node scripts/relay.mjs"
   },
   "dependencies": {
+    "@sentry/browser": "^8.55.2",
     "@supabase/supabase-js": "^2.49.4",
+    "@vercel/analytics": "^1.6.1",
     "next": "15.5.29",
     "react": "19.1.1",
     "react-dom": "19.1.1",

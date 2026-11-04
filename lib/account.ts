@@ -172,3 +172,45 @@ export async function listHistory(): Promise<HistoryRow[]> {
     .limit(100);
   return (data as HistoryRow[]) ?? [];
 }
+
+/* ---------- ratings (signed-in players only, one per finished game) ---------- */
+export async function sendRating(r: {
+  caseId: string;
+  gameAt: number;
+  stars: number;
+  comment: string;
+  mode: "solo" | "party";
+  players: number;
+  verdict: string;
+  minutes: number;
+}): Promise<boolean> {
+  const sb = await getSupabase();
+  if (!sb || !state.user) return false;
+  const { error } = await sb.from("ratings").insert({
+    user_id: state.user.id,
+    case_id: r.caseId,
+    game_at: new Date(r.gameAt).toISOString(),
+    stars: Math.max(1, Math.min(5, Math.round(r.stars))),
+    comment: r.comment.trim() ? r.comment.trim().slice(0, 1000) : null,
+    mode: r.mode,
+    players: Math.max(1, Math.min(6, r.players)),
+    verdict: r.verdict.slice(0, 80),
+    minutes: Math.max(0, Math.min(10000, r.minutes)),
+  });
+  return !error || error.code === "23505"; // already rated this game (another device): that's fine
+}
+
+/* ---------- deleting an account ---------- */
+/** Erases the account and everything tied to it (profile, saved progress, history, ratings), then signs out. */
+export async function deleteAccount(): Promise<boolean> {
+  const sb = await getSupabase();
+  if (!sb || !state.user) return false;
+  const { error } = await sb.rpc("delete_my_account");
+  if (error) return false;
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith("blackwood:")).forEach((k) => localStorage.removeItem(k));
+  } catch {}
+  await sb.auth.signOut().catch(() => {});
+  set({ user: null, profile: null });
+  return true;
+}

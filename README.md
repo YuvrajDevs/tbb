@@ -120,3 +120,14 @@ Setup: Google Cloud OAuth client (web) with redirect URI `https://<project>.supa
 Supabase → Authentication → Providers → Google (client ID and secret); Supabase → Authentication → URL
 Configuration: Site URL = the live site, Redirect URLs = `https://<site>/auth/callback` and
 `http://localhost:3000/auth/callback`.
+
+## Legal pages, account deletion, analytics and errors
+
+- `/privacy` and `/terms`, linked in every footer and under each Google button. Set
+  `NEXT_PUBLIC_CONTACT_EMAIL` for the contact address they show.
+- **Delete my account** on `/account` calls `delete_my_account()` in the database, which removes the user;
+  profile, saved progress, history and ratings go with it (cascade).
+- Ratings are filed only by signed-in players, one per finished game (`ratings.user_id`, `game_at`).
+- Vercel Web Analytics (enable it in the Vercel project's Analytics tab); loaded only on Vercel.
+- Browser errors are recorded in the Supabase table `client_errors` (no personal data, kept 90 days).
+  With `NEXT_PUBLIC_SENTRY_DSN` set they also go to Sentry, which emails alerts.

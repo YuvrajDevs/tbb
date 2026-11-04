@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { MusicHost } from "@/components/MusicHost";
+import { ErrorReporter } from "@/components/ErrorReporter";
+import { Analytics } from "@vercel/analytics/next";
 
 const SITE =
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -42,7 +44,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <MusicHost />
+        <ErrorReporter />
         <main>{children}</main>
+        {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>
   );

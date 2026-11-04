@@ -4,7 +4,7 @@ import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cases } from "@/lib/cases/hollow-pines";
-import { listHistory, loadProgress, renameProfile, signOut, useAuth, type HistoryRow, type SavedProgress } from "@/lib/account";
+import { deleteAccount, listHistory, loadProgress, renameProfile, signOut, useAuth, type HistoryRow, type SavedProgress } from "@/lib/account";
 import { GoogleButton } from "./SignIn";
 import { SettingsButton } from "./SoundSettings";
 import { SiteFooter } from "./SiteFooter";
@@ -15,6 +15,8 @@ export function AccountPage() {
   const [saved, setSaved] = useState<"" | "saving" | "saved" | "error">("");
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
   const [progress, setProgress] = useState<Record<string, SavedProgress | null>>({});
+  const [deleting, setDeleting] = useState<"" | "confirm" | "working" | "error">("");
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
     if (profile) setName(profile.display_name);
@@ -131,6 +133,35 @@ export function AccountPage() {
 
             <section className="acct-sec">
               <button className="btn" onClick={() => void signOut()}>Sign out</button>
+            </section>
+
+            <section className="acct-sec acct-danger">
+              <h2 className="acct-h">Delete my account</h2>
+              <p className="muted-dark">
+                Erases your profile, saved progress, closed cases and ratings for good, and signs you out. This cannot be undone. Notes kept on
+                this device are cleared too.
+              </p>
+              {deleting === "" ? (
+                <button className="btn" onClick={() => setDeleting("confirm")}>Delete my account</button>
+              ) : (
+                <form
+                  className="acct-form"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (typed.trim().toUpperCase() !== "DELETE") return;
+                    setDeleting("working");
+                    if (await deleteAccount()) window.location.href = "/";
+                    else setDeleting("error");
+                  }}
+                >
+                  <input className="field-input" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type DELETE to confirm" aria-label="Type DELETE to confirm" autoFocus />
+                  <button className="btn danger" disabled={typed.trim().toUpperCase() !== "DELETE" || deleting === "working"}>
+                    {deleting === "working" ? "Deleting…" : "Delete forever"}
+                  </button>
+                  <button type="button" className="btn ghost" onClick={() => { setDeleting(""); setTyped(""); }}>Cancel</button>
+                  {deleting === "error" && <span className="lookagain" style={{ margin: 0 }}>It did not go through. Try again.</span>}
+                </form>
+              )}
             </section>
           </>
         )}

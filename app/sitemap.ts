@@ -7,7 +7,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${SITE}/`, changeFrequency: "monthly", priority: 1 },
     { url: `${SITE}/cases`, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${SITE}/room`, changeFrequency: "yearly", priority: 0.5 },
+    { url: `${SITE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     ...Object.keys(cases).map((id) => ({ url: `${SITE}/case/${id}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   ];
 }
