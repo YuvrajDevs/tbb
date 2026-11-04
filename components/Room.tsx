@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { hollowPines } from "@/lib/cases/hollow-pines";
@@ -128,7 +129,7 @@ export function Room({ code }: { code: string }) {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 80, maxWidth: 640 }}>
-      <Link href="/cases" className="btn ghost" style={{ paddingLeft: 0 }}>← Case archive</Link>
+      <Link href="/cases" className="btn ghost" style={{ paddingLeft: 0 }}>{ArrowLeft} Case archive</Link>
       <div style={{ marginTop: 40 }}>{children}</div>
     </div>
   );

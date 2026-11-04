@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { useState } from "react";
 import { accountsAvailable, signInRequired, signInWithGoogle, useAuth } from "@/lib/account";
@@ -46,7 +47,7 @@ export function SignInGate({ children, what = "open this case" }: { children: Re
   return (
     <div className="page">
       <div className="wrap page-main gate">
-        <Link href="/cases" className="btn ghost back-link">← Case archive</Link>
+        <Link href="/cases" className="btn ghost back-link">{ArrowLeft} Case archive</Link>
         <div className="gate-card paper">
           <div className="gate-eyebrow">The Blackwood Bureau · Credentials</div>
           <h1 className="gate-title">Sign in to {what}</h1>

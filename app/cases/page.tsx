@@ -1,8 +1,10 @@
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { Shelf } from "@/components/Shelf";
 import { SettingsButton } from "@/components/SoundSettings";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AccountButton } from "@/components/SignIn";
+import { ArchiveJoin } from "@/components/LandingActions";
 
 export const metadata = {
   title: "Case archive",
@@ -14,7 +16,7 @@ export default function CaseArchive() {
     <div className="page">
       <div className="wrap page-main">
         <nav className="archive-nav">
-          <Link href="/" className="btn ghost back-link">← The Bureau</Link>
+          <Link href="/" className="btn ghost back-link">{ArrowLeft} The Bureau</Link>
           <div className="nav-right">
             <SettingsButton />
             <AccountButton />
@@ -28,7 +30,7 @@ export default function CaseArchive() {
           </div>
           <div className="archive-side">
             <div className="eyebrow">Case archive</div>
-            <Link href="/room" className="btn">Join a party room <span aria-hidden>→</span></Link>
+            <ArchiveJoin />
           </div>
         </header>
         <hr className="rule archive-rule" />

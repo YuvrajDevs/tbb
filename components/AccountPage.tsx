@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { cases } from "@/lib/cases/hollow-pines";
@@ -31,7 +32,7 @@ export function AccountPage() {
     <div className="page">
       <div className="wrap page-main" style={{ maxWidth: 860 }}>
         <nav className="archive-nav">
-          <Link href="/cases" className="btn ghost back-link">← Case archive</Link>
+          <Link href="/cases" className="btn ghost back-link">{ArrowLeft} Case archive</Link>
           <SettingsButton />
         </nav>
         {!ready ? (

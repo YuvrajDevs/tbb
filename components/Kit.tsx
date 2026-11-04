@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import type { CaseFile } from "@/lib/types";
 import { Evidence } from "./evidence";
@@ -16,7 +17,7 @@ export function Kit({ c }: { c: CaseFile }) {
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 80, maxWidth: 920 }}>
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 28 }}>
-        <Link href={`/case/${c.id}`} className="btn ghost" style={{ paddingLeft: 0 }}>← Case cover</Link>
+        <Link href={`/case/${c.id}`} className="btn ghost" style={{ paddingLeft: 0 }}>{ArrowLeft} Case cover</Link>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <span style={{ color: "var(--text-3)", fontSize: 14, fontStyle: "italic" }}>A4 · every page carries the case and envelope number</span>
           <button className="btn primary" onClick={() => window.print()}>Print case kit</button>

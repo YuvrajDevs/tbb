@@ -1,3 +1,4 @@
+import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cases } from "@/lib/cases/hollow-pines";
@@ -19,7 +20,7 @@ export default async function CasePage({ params }: { params: Promise<{ id: strin
   if (!c) notFound();
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 80, maxWidth: 980 }}>
-      <Link href="/cases" className="btn ghost" style={{ paddingLeft: 0 }}>← Case archive</Link>
+      <Link href="/cases" className="btn ghost" style={{ paddingLeft: 0 }}>{ArrowLeft} Case archive</Link>
       <div style={{ position: "relative", marginTop: 24 }}>
         {/* tab */}
         <div style={{ width: 220, height: 30, background: "var(--manila-2)", border: "1px solid var(--kraft)", borderBottom: 0, borderRadius: "5px 14px 0 0", fontFamily: "var(--type)", fontSize: 12, letterSpacing: ".2em", color: "var(--brown-deep)", padding: "7px 16px" }}>

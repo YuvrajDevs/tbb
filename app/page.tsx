@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cases } from "@/lib/cases/hollow-pines";
 import { SiteFooter } from "@/components/SiteFooter";
-import { HeroActions, LandingNavActions } from "@/components/LandingActions";
+import { HeroActions, LandingNavActions, WayAction } from "@/components/LandingActions";
 
 const c = cases["017"];
 const exhibits = c.rounds.reduce((n, r) => n + r.files.length, 0);
@@ -216,7 +216,7 @@ export default function Landing() {
               <div className="eyebrow">{w.tag}</div>
               <h3>{w.h}</h3>
               <p>{w.p}</p>
-              <Link href={w.cta.href} className="btn sm lway-cta">{w.cta.label} <span aria-hidden>→</span></Link>
+              <WayAction href={w.cta.href} label={w.cta.label} needsSignIn={w.cta.href === "/room"} />
             </article>
           ))}
         </div>

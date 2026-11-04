@@ -69,14 +69,16 @@ button { font-family: inherit; }
   padding: 11px 18px; border: 1px solid var(--line-2); background: transparent; color: var(--text);
   cursor: pointer; text-decoration: none; transition: background .15s, border-color .15s, color .15s;
   line-height: 1.2; /* links and buttons otherwise get different heights */
+  min-height: 44px; /* every full-size button is the same height, whatever its text or padding */
 }
+.btn .arrow { flex: none; display: block; }
 .btn:hover { border-color: var(--manila-2); color: #fff; }
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.primary { background: var(--paper); color: var(--ink); border-color: var(--paper); }
 .btn.primary:hover { background: #fff; }
 .btn.ghost { border-color: transparent; color: var(--text-2); padding: 8px 10px; }
 .btn.ghost:hover { color: var(--text); border-color: var(--line-2); }
-.btn.sm { padding: 7px 11px; font-size: 11px; }
+.btn.sm { padding: 7px 11px; font-size: 11px; min-height: 36px; } /* matches the 36px icon buttons */
 .iconbtn {
   width: 36px; height: 36px; display: inline-grid; place-items: center;
   background: transparent; border: 1px solid var(--line); color: var(--text-2); cursor: pointer;
@@ -453,7 +455,7 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 
 /* ===================== settings card (archive) ===================== */
 .settings-wrap { position: relative; }
-.settings-btn { padding: 9px 14px; font-size: 12px; }
+.settings-btn { font-size: 12px; }
 .settings-btn.on { border-color: var(--manila-2); color: var(--text); }
 .settings-pop {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: min(360px, calc(100vw - 32px));

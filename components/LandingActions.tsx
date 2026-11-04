@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { accountsAvailable, signInWithGoogle, signOut, useAuth } from "@/lib/account";
+import { ArrowRight } from "./Arrow";
 
 /**
  * Landing page header, top right.
@@ -43,5 +44,33 @@ export function HeroActions() {
         </Link>
       )}
     </div>
+  );
+}
+
+/** Archive header, right side: "Join a party room" only for signed-in players. */
+export function ArchiveJoin() {
+  const { ready, user } = useAuth();
+  if (accountsAvailable && (!ready || !user)) return null;
+  return (
+    <Link href="/room" className="btn">
+      Join a party room {ArrowRight}
+    </Link>
+  );
+}
+
+/** "Ways to play" card buttons: anything that starts a game asks signed-out visitors to sign in first. */
+export function WayAction({ href, label, needsSignIn }: { href: string; label: string; needsSignIn?: boolean }) {
+  const { ready, user } = useAuth();
+  if (needsSignIn && accountsAvailable && ready && !user) {
+    return (
+      <button className="btn sm lway-cta" onClick={() => signInWithGoogle("/cases")}>
+        Sign in to play {ArrowRight}
+      </button>
+    );
+  }
+  return (
+    <Link href={href} className="btn sm lway-cta" style={needsSignIn && accountsAvailable && !ready ? { visibility: "hidden" } : undefined}>
+      {label} {ArrowRight}
+    </Link>
   );
 }
