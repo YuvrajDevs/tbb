@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "node tests/e2e/solo.js && node tests/e2e/room.js && node tests/e2e/room-edge-cases.js"
+    "test:e2e": "node tests/e2e/solo.js && node tests/e2e/mobile.js && node tests/e2e/remote-2p.js && node tests/e2e/remote-4p.js",
+    "relay": "node scripts/relay.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { memo, type ReactElement } from "react";
 import type { EvidenceFile } from "@/lib/types";
 import * as R1 from "./round1";
 import * as R2 from "./round2";
@@ -45,7 +45,8 @@ const registry: Record<string, (f: EvidenceFile) => ReactElement> = {
   "r5-wedding": () => <R5.WeddingPhoto />,
 };
 
-export function Evidence({ file }: { file: EvidenceFile }) {
+/** Memoised: documents are heavy and the desk re-renders every second for timers. */
+export const Evidence = memo(function Evidence({ file }: { file: EvidenceFile }) {
   const render = registry[file.id];
   return render ? render(file) : <div>Missing exhibit</div>;
-}
+});

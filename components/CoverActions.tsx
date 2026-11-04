@@ -18,7 +18,9 @@ export function CoverActions({ caseId }: { caseId: string }) {
   const [status, setStatus] = useState<string>("New");
   const [confirm, setConfirm] = useState(false);
   const router = useRouter();
-  useEffect(() => setStatus(soloStatus(caseId)), [caseId]);
+  useEffect(() => {
+    setStatus(soloStatus(caseId));
+  }, [caseId]);
 
   const darkBtn = { background: "var(--ink)", color: "var(--paper)", borderColor: "var(--ink)" };
   const lineBtn = { color: "var(--ink)", borderColor: "var(--brown)" };

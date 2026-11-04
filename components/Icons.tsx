@@ -112,6 +112,14 @@ export function FileIcon({ type, size = 28 }: { type: FileType; size?: number })
 }
 
 export const Glyph = {
+  gear: <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" strokeWidth="1.4" /></svg>,
+  files: <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 5.5Q2 4 3.5 4H8l1.5 2h7Q18 6 18 7.5v7Q18 16 16.5 16h-13Q2 16 2 14.5Z" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>,
+  notes: <svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.3" /></svg>,
+  hint: <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 2.5a5 5 0 0 0-3 9v2h6v-2a5 5 0 0 0-3-9Z" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M7.5 16.5h5" stroke="currentColor" strokeWidth="1.4" /></svg>,
+  table: <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="7" cy="7" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.4" /><circle cx="14" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="1.3" /><path d="M2.5 16q0-4.5 4.5-4.5t4.5 4.5M11.5 15.5q.5-3.5 2.5-3.5t3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>,
+  accuse: <svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" /><circle cx="10" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3" stroke="currentColor" strokeWidth="1.3" /></svg>,
+  point: <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8h9M8 4.5 11.5 8 8 11.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M14 3v10" stroke="currentColor" strokeWidth="1.5" /></svg>,
+  send: <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 8 14 2.5 10 14 8 9Z" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>,
   play: <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 1.5 L12 7 L3 12.5Z" fill="currentColor" /></svg>,
   pause: <svg width="14" height="14" viewBox="0 0 14 14"><rect x="3" y="2" width="3" height="10" fill="currentColor" /><rect x="8" y="2" width="3" height="10" fill="currentColor" /></svg>,
   prev: <svg width="14" height="14" viewBox="0 0 14 14"><path d="M10 2 L4 7 L10 12" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>,

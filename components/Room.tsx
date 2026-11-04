@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { hollowPines } from "@/lib/cases/hollow-pines";
-import { NAME_KEY, useRoomGame, type Game } from "@/lib/game/game";
+import { NAME_KEY, roomNameKey, useRoomGame, type Game } from "@/lib/game/game";
 import { MAX_PLAYERS, sortedPlayers } from "@/lib/game/state";
 import { Desk } from "./Desk";
 
-const nameKey = (code: string) => `blackwood:room:${code}:name`;
 
 export function Room({ code }: { code: string }) {
   const [name, setName] = useState<string | null>(null);
@@ -16,7 +15,8 @@ export function Room({ code }: { code: string }) {
 
   useEffect(() => {
     try {
-      const inRoom = sessionStorage.getItem(nameKey(code));
+      const raw = localStorage.getItem(roomNameKey(code));
+      const inRoom = raw ? (JSON.parse(raw) as string) : null;
       if (inRoom) setName(inRoom);
       setDraft(inRoom ?? localStorage.getItem(NAME_KEY) ?? "");
     } catch {}
@@ -49,7 +49,7 @@ export function Room({ code }: { code: string }) {
             if (!n) return;
             try {
               localStorage.setItem(NAME_KEY, n);
-              sessionStorage.setItem(nameKey(code), n);
+              localStorage.setItem(roomNameKey(code), JSON.stringify(n));
             } catch {}
             setName(n);
           }}
@@ -94,6 +94,16 @@ export function Room({ code }: { code: string }) {
         <h1 className="room-h">This room is full</h1>
         <p className="muted-dark">A room holds up to {MAX_PLAYERS} players.</p>
         <Link className="btn" href="/">Case archive</Link>
+      </Shell>
+    );
+  }
+
+  if (!game.s.players[game.me]) {
+    return (
+      <Shell>
+        <div className="eyebrow">Room {code}</div>
+        <h1 className="room-h">Taking your seat…</h1>
+        <p className="muted-dark">Waiting for the host&apos;s device to let you in.</p>
       </Shell>
     );
   }

@@ -30,7 +30,20 @@ export interface Shared {
   revealStep: number;
   /** removed by the host; their join requests are ignored */
   kicked?: string[];
+  /** last intent sequence applied per player (dedupes retries) */
+  seq?: Record<string, number>;
+  /** table chat, newest last, capped */
+  chat?: ChatMsg[];
+  /** players' suggested checkpoint answers for the current round */
+  suggest?: Record<string, string>;
+  /** "look at this": last exhibit someone pointed the table to */
+  pointer?: { by: string; fileId: string; at: number } | null;
+  /** split mode: files a holder has shown to everyone */
+  shown?: string[];
 }
+
+export type ChatMsg = { id: string; by: string; text: string; at: number };
+export const CHAT_MAX = 60;
 
 export type SuspectMark = "none" | "suspicious" | "cleared";
 
@@ -42,6 +55,8 @@ export interface Private {
   suspects: Record<string, SuspectMark>;
   hintsUsed: Record<number, number>;
   voice: boolean;
+  /** newest table-chat message this device has seen */
+  chatReadAt?: number;
 }
 
 export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: false });
@@ -87,10 +102,15 @@ export type Action =
   | { t: "vote"; vote: Vote }
   | { t: "accuse"; vote: Vote }
   | { t: "reveal"; d: number }
-  | { t: "kick"; id: string };
+  | { t: "kick"; id: string }
+  | { t: "handover"; id: string }
+  | { t: "say"; text: string }
+  | { t: "suggest"; choice: string }
+  | { t: "point"; fileId: string }
+  | { t: "show"; fileId: string };
 
 /** Actions any player may send. Everything else is the host's. */
-const OPEN: Action["t"][] = ["join", "hint", "vote"];
+const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show"];
 
 export interface Ctx {
   now: number;
@@ -129,7 +149,7 @@ function assignRound(c: CaseFile, s: Shared, round: number, online: string[]): R
 
 /** Who can open a file in split mode right now. Offline holders hand their files on. */
 export function holderOf(c: CaseFile, s: Shared, fileId: string, online: string[]): string | null {
-  if (s.mode !== "split") return null;
+  if (s.mode !== "split" || s.shown?.includes(fileId)) return null;
   const assigned = s.assign[fileId];
   if (assigned && online.includes(assigned)) return assigned;
   const ids = sortedPlayers(s, online);
@@ -148,9 +168,7 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
     case "join": {
       if (s.kicked?.includes(actor)) return s;
       const name = a.name.trim().slice(0, 24) || "Detective";
-      if (s.players[actor]) {
-        return s.players[actor].name === name ? s : bump({ players: { ...s.players, [actor]: { ...s.players[actor], name } } });
-      }
+      if (s.players[actor]) return s;
       // same name, offline: treat as the same person coming back on a new tab or phone
       const old = Object.entries(s.players).find(([id, p]) => p.name.toLowerCase() === name.toLowerCase() && !ctx.online.includes(id));
       if (old) {
@@ -167,7 +185,35 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
         return bump({ players, votes: move(s.votes), hints: move(s.hints), assign, hostId: s.hostId === oldId ? actor : s.hostId });
       }
       if (Object.keys(s.players).length >= MAX_PLAYERS) return s;
-      return bump({ players: { ...s.players, [actor]: { name, joinedAt: ctx.now } } });
+      // two different people with one name: number the newcomer
+      const taken = new Set(Object.values(s.players).map((p) => p.name.toLowerCase()));
+      let unique = name;
+      for (let n = 2; taken.has(unique.toLowerCase()); n++) unique = `${name} ${n}`;
+      return bump({ players: { ...s.players, [actor]: { name: unique, joinedAt: ctx.now } } });
+    }
+    case "handover":
+      return s.players[a.id] && a.id !== s.hostId && ctx.online.includes(a.id) ? bump({ hostId: a.id }) : s;
+    case "say": {
+      const text = a.text.trim().slice(0, 280);
+      if (!text || !s.players[actor]) return s;
+      const chat = [...(s.chat ?? []), { id: `${actor}-${ctx.now}`, by: actor, text, at: ctx.now }].slice(-CHAT_MAX);
+      return bump({ chat });
+    }
+    case "suggest": {
+      const r = c.rounds.find((x) => x.number === s.unlocked);
+      if (!s.players[actor] || s.phase !== "play" || s.solved[s.unlocked] || !r?.checkpoint.choices.some((ch) => ch.id === a.choice)) return s;
+      if (s.suggest?.[actor] === a.choice) return s;
+      return bump({ suggest: { ...(s.suggest ?? {}), [actor]: a.choice } });
+    }
+    case "point": {
+      const ok = c.rounds.some((r) => r.number <= s.unlocked && r.files.some((x) => x.id === a.fileId));
+      if (!ok || !s.players[actor]) return s;
+      return bump({ pointer: { by: actor, fileId: a.fileId, at: ctx.now } });
+    }
+    case "show": {
+      if (s.mode !== "split" || s.shown?.includes(a.fileId)) return s;
+      if (holderOf(c, s, a.fileId, ctx.online) !== actor) return s;
+      return bump({ shown: [...(s.shown ?? []), a.fileId] });
     }
     case "kick": {
       if (a.id === s.hostId || !s.players[a.id]) return s;
@@ -225,6 +271,7 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
         roundStartedAt: { ...s.roundStartedAt, [next]: ctx.now },
         narration: { script: `round-${next}`, line: 0 },
         assign: assignRound(c, base, next, ctx.online),
+        suggest: {},
       });
     }
     case "hint":

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CaseFile } from "../types";
-import { emptyPrivate, newShared, reduce, sortedPlayers, type Action, type Private, type Shared } from "./state";
+import { emptyPrivate, MAX_PLAYERS, newShared, reduce, sortedPlayers, type Action, type Private, type Shared } from "./state";
 import { openTransport, transportKind, type Msg, type Transport } from "./transport";
 
 export interface Game {
@@ -22,7 +22,7 @@ export interface Game {
   act(a: Action): void;
   priv: Private;
   setPriv(fn: (p: Private) => Private): void;
-  room?: { code: string; transport: "supabase" | "local" };
+  room?: { code: string; transport: "supabase" | "relay" | "local" };
 }
 
 /* ---------- storage helpers (never throw) ---------- */
@@ -111,10 +111,12 @@ const HB_MS = 2500;
 const AWAY_MS = 9000;
 const BYE_GRACE_MS = 4000;
 const TAKEOVER_MS = 3000;
+const RETRY_MS = 1500;
 
 export const roomIdKey = (code: string) => `blackwood:room:${code}:id`;
 const roomStateKey = (code: string) => `blackwood:room:${code}:state`;
 const roomCreatorKey = (code: string) => `blackwood:room:${code}:creator`;
+export const roomNameKey = (code: string) => `blackwood:room:${code}:name`;
 export const roomPrivKey = (code: string, id: string) => `blackwood:room:${code}:${id}:private`;
 export const NAME_KEY = "blackwood:name";
 
@@ -136,28 +138,42 @@ export function newId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
 
-export type RoomStatus = "connecting" | "waiting" | "full" | "removed" | "ready";
+/** A device keeps its seat across closed tabs (localStorage); two tabs in one browser get different seats. */
+function loadId(code: string) {
+  const fromTab = read<string>("session", roomIdKey(code));
+  if (fromTab) return fromTab;
+  const id = read<string>("local", roomIdKey(code)) ?? newId();
+  write("session", roomIdKey(code), id);
+  write("local", roomIdKey(code), id);
+  return id;
+}
+
+export type RoomStatus = "connecting" | "waiting" | "joining" | "full" | "removed" | "ready";
+
+type Pending = { seq: number; action: Action };
 
 export function useRoomGame(c: CaseFile, code: string, name: string | null): { game: Game | null; status: RoomStatus } {
-  const [me] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    const existing = read<string>("session", roomIdKey(code));
-    if (existing) return existing;
-    const id = newId();
-    write("session", roomIdKey(code), id);
-    return id;
-  });
+  const [me, setMe] = useState<string>("");
+  useEffect(() => {
+    setMe(loadId(code));
+  }, [code]);
+  const [nonce] = useState(() => Math.random().toString(36).slice(2));
+  const [loadedAt] = useState(() => Date.now());
+
   const [s, setS] = useState<Shared | null>(null);
   const sRef = useRef<Shared | null>(null);
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState<RoomStatus>("connecting");
-  const [tick, setTick] = useState(0);
+  const [, setTick] = useState(0);
   const seen = useRef<Map<string, number>>(new Map());
   const byes = useRef<Map<string, number>>(new Map());
   const connectedAt = useRef<number>(0);
   const hostLostAt = useRef<number | null>(null);
   const skewRef = useRef(0);
   const tRef = useRef<Transport | null>(null);
+  const queue = useRef<Pending[]>([]);
+  const seqBase = useRef(Date.now() * 1000);
+  const lastSync = useRef(0);
   const nameRef = useRef(name);
   nameRef.current = name;
   const { priv, setPriv } = usePrivate(me ? roomPrivKey(code, me) : null);
@@ -166,8 +182,7 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
     const now = Date.now();
     const st = sRef.current;
     const ids = new Set<string>([me]);
-    const consider = st ? Object.keys(st.players) : [];
-    for (const id of consider) {
+    for (const id of st ? Object.keys(st.players) : []) {
       if (id === me) continue;
       const bye = byes.current.get(id);
       const last = seen.current.get(id);
@@ -181,64 +196,114 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
     return [...ids];
   }, [me]);
 
+  const sendState = useCallback(() => {
+    if (sRef.current) tRef.current?.send({ t: "state", from: me, state: sRef.current, at: Date.now() });
+  }, [me]);
+
   const adopt = useCallback(
     (next: Shared, broadcast: boolean) => {
       sRef.current = next;
       setS(next);
-      write("session", roomStateKey(code), next);
-      if (broadcast) tRef.current?.send({ t: "state", from: me, state: next, at: Date.now() });
+      write("local", roomStateKey(code), next);
+      const acked = next.seq?.[me] ?? 0;
+      if (queue.current.length) queue.current = queue.current.filter((q) => q.seq > acked);
+      if (broadcast) sendState();
     },
-    [code, me]
+    [code, me, sendState]
   );
 
-  const applyAsHost = useCallback(
-    (a: Action, actor: string) => {
-      const cur = sRef.current;
+  /** host only: apply a batch of one player's intents, in order, once each */
+  const applyIntents = useCallback(
+    (list: Pending[], actor: string) => {
+      let cur = sRef.current;
       if (!cur || cur.hostId !== me) return;
-      const next = reduce(c, cur, a, actor, { now: Date.now(), online: onlineIds() });
-      if (next !== cur) adopt(next, true);
+      const start = cur;
+      for (const { seq, action } of list) {
+        if (seq <= (cur.seq?.[actor] ?? 0)) continue;
+        const after = reduce(c, cur, action, actor, { now: Date.now(), online: onlineIds() });
+        cur = { ...after, v: after === cur ? cur.v + 1 : after.v, seq: { ...(after.seq ?? {}), [actor]: seq } };
+      }
+      if (cur !== start) adopt(cur, true);
+      else sendState(); // a retry of something already applied: re-send so they see the ack
     },
-    [adopt, c, me, onlineIds]
+    [adopt, c, me, onlineIds, sendState]
   );
+
+  const flush = useCallback(() => {
+    if (queue.current.length) tRef.current?.send({ t: "intents", from: me, list: queue.current });
+  }, [me]);
 
   const act = useCallback(
     (a: Action) => {
       const cur = sRef.current;
       if (!cur) return;
-      if (cur.hostId === me) applyAsHost(a, me);
-      else tRef.current?.send({ t: "intent", from: me, action: a });
+      if (cur.hostId === me) {
+        const next = reduce(c, cur, a, me, { now: Date.now(), online: onlineIds() });
+        if (next !== cur) adopt(next, true);
+        return;
+      }
+      queue.current.push({ seq: ++seqBase.current, action: a });
+      flush();
     },
-    [applyAsHost, me]
+    [adopt, c, flush, me, onlineIds]
   );
 
   /* connect */
   useEffect(() => {
     if (!me || !name) return;
     let closed = false;
-    const cached = read<Shared>("session", roomStateKey(code));
+    const cached = read<Shared>("local", roomStateKey(code));
     const creator = read<boolean>("session", roomCreatorKey(code));
 
     const onMsg = (m: Msg) => {
-      if (closed || m.from === me) return;
+      if (closed) return;
+      if (m.from === me) {
+        // another tab of this browser is using our seat: the newer tab takes a fresh one
+        if (m.t === "hb" && m.nonce && m.nonce !== nonce && (m.since ?? 0) < loadedAt) {
+          const id = newId();
+          write("session", roomIdKey(code), id);
+          setS(null);
+          sRef.current = null;
+          queue.current = [];
+          setMe(id);
+        }
+        return;
+      }
       seen.current.set(m.from, Date.now());
+      const cur = sRef.current;
       switch (m.t) {
         case "hb":
           byes.current.delete(m.from);
+          // anti-entropy: whoever is behind gets caught up, at most once a second
+          if (cur && m.v !== undefined && Date.now() - lastSync.current > 1000) {
+            if (cur.hostId === me && m.v < cur.v) {
+              lastSync.current = Date.now();
+              sendState();
+            } else if (m.from === cur.hostId && m.v > cur.v) {
+              lastSync.current = Date.now();
+              tRef.current?.send({ t: "hello", from: me });
+            }
+          }
           return;
         case "bye":
           byes.current.set(m.from, Date.now());
           seen.current.set(m.from, Date.now() - 1);
           return;
         case "hello":
-          if (sRef.current) tRef.current?.send({ t: "state", from: me, state: sRef.current, at: Date.now() });
+          // the host answers; if the host is away, anyone with state does
+          if (cur && (cur.hostId === me || !onlineIds().includes(cur.hostId))) sendState();
           return;
         case "state":
           if (m.state.caseId !== c.id) return;
           if (m.at && m.from === m.state.hostId) skewRef.current = m.at - Date.now();
-          if (better(m.state, sRef.current)) adopt(m.state, false);
+          if (better(m.state, cur)) adopt(m.state, false);
+          else if (queue.current.length && cur) queue.current = queue.current.filter((q) => q.seq > (cur.seq?.[me] ?? 0));
+          return;
+        case "intents":
+          applyIntents(m.list, m.from);
           return;
         case "intent":
-          applyAsHost(m.action, m.from);
+          applyIntents([{ seq: Number.MAX_SAFE_INTEGER - 1, action: m.action }], m.from);
           return;
       }
     };
@@ -249,7 +314,7 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
       tRef.current = t;
       connectedAt.current = Date.now();
       t.send({ t: "hello", from: me });
-      t.send({ t: "hb", from: me, name: nameRef.current ?? "" });
+      t.send({ t: "hb", from: me, name: nameRef.current ?? "", nonce, since: loadedAt });
       // give the room a moment to answer before deciding we are alone
       window.setTimeout(() => {
         if (closed || sRef.current) return;
@@ -259,22 +324,35 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
       }, 1500);
     })();
 
-    const hb = window.setInterval(() => tRef.current?.send({ t: "hb", from: me, name: nameRef.current ?? "" }), HB_MS);
-    const ask = window.setInterval(() => {
+    const hb = window.setInterval(
+      () => tRef.current?.send({ t: "hb", from: me, name: nameRef.current ?? "", v: sRef.current?.v, nonce, since: loadedAt }),
+      HB_MS
+    );
+    const retry = window.setInterval(() => {
       if (!sRef.current) tRef.current?.send({ t: "hello", from: me });
-    }, 3000);
+      else flush();
+    }, RETRY_MS);
     const bye = () => tRef.current?.send({ t: "bye", from: me });
+    const vis = () => {
+      // phones freeze background tabs; on return, catch up immediately
+      if (document.visibilityState === "visible") {
+        tRef.current?.send({ t: "hello", from: me });
+        tRef.current?.send({ t: "hb", from: me, name: nameRef.current ?? "", v: sRef.current?.v, nonce, since: loadedAt });
+      }
+    };
     window.addEventListener("pagehide", bye);
+    document.addEventListener("visibilitychange", vis);
     return () => {
       closed = true;
       window.clearInterval(hb);
-      window.clearInterval(ask);
+      window.clearInterval(retry);
       window.removeEventListener("pagehide", bye);
+      document.removeEventListener("visibilitychange", vis);
       bye();
       tRef.current?.close();
       tRef.current = null;
     };
-  }, [adopt, applyAsHost, c, code, me, name]);
+  }, [adopt, applyIntents, c, code, flush, me, name, nonce, loadedAt, onlineIds, sendState]);
 
   /* liveness: once a second, check the host and take over if needed */
   useEffect(() => {
@@ -300,34 +378,42 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
       if (cur.phase === "play" && !cur.solved[r] && roundStartedAt[r]) roundStartedAt[r] += paused;
       skewRef.current = 0;
       hostLostAt.current = null;
-      adopt({ ...cur, v: cur.v + 1, hostId: me, roundStartedAt, startedAt: cur.startedAt ? cur.startedAt - k : cur.startedAt }, true);
+      // anything I had queued as a player, I now apply myself
+      const mine = queue.current;
+      queue.current = [];
+      let next: Shared = { ...cur, v: cur.v + 1, hostId: me, roundStartedAt, startedAt: cur.startedAt ? cur.startedAt - k : cur.startedAt };
+      for (const q of mine) next = reduce(c, next, q.action, me, { now: Date.now(), online });
+      adopt(next, true);
     }, 1000);
     return () => window.clearInterval(iv);
-  }, [adopt, me, onlineIds]);
+  }, [adopt, c, me, onlineIds]);
 
   /* make sure we are on the roster */
+  const askedJoin = useRef<string>("");
   useEffect(() => {
-    if (!s || !name) return;
+    if (!s || !name || !me) return;
     if (s.players[me]) {
       setStatus("ready");
-      if (s.players[me].name !== name) act({ t: "join", name });
       return;
     }
     if (s.kicked?.includes(me)) {
       setStatus("removed");
       return;
     }
-    if (Object.keys(s.players).length >= 6 && !Object.values(s.players).some((p) => p.name.toLowerCase() === name.toLowerCase())) {
+    if (Object.keys(s.players).length >= MAX_PLAYERS && !Object.entries(s.players).some(([id, p]) => p.name.toLowerCase() === name.toLowerCase() && !onlineIds().includes(id))) {
       setStatus("full");
       return;
     }
-    tRef.current?.send({ t: "intent", from: me, action: { t: "join", name } });
-  }, [s, me, name, act, tick]);
+    setStatus("joining");
+    if (askedJoin.current !== me) {
+      askedJoin.current = me;
+      act({ t: "join", name });
+    }
+  }, [s, me, name, act, onlineIds]);
 
   if (!s || !me) return { game: null, status };
   const online = onlineIds();
   const hostAway = s.hostId !== me && !online.includes(s.hostId);
-  void tick;
   return {
     status,
     game: {

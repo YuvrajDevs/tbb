@@ -23,7 +23,7 @@ const ok = (c, m) => { if (!c) throw new Error('FAIL: ' + m); console.log('ok -'
     '21:40, before Vikram fell',
   ];
   for (let i = 0; i < 5; i++) {
-    const rows = await pg.$$('.filetable tbody tr');
+    const rows = await pg.$$('.filelist li .fl-main');
     for (const row of rows) { await row.click(); await pg.waitForTimeout(60); }
     ok((await pg.$$('.paper')).length > 0, `round ${i + 1}: files open (${rows.length})`);
     if (i === 0) {

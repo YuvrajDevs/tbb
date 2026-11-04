@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { EvidenceFile, Round } from "@/lib/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CaseFile, EvidenceFile, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type SuspectMark, type Vote } from "@/lib/game/state";
+import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
 import { speakLine, stopNarration } from "@/lib/game/narrator";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
-type Panel = null | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "players";
+type Panel = null | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
+
+const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
 
 export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const { c, s, priv, setPriv } = g;
@@ -20,24 +23,78 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const [panel, setPanel] = useState<Panel>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [zoom, setZoom] = useState(1);
-  const [now, setNow] = useState(() => Date.now());
+  const [narOpen, setNarOpen] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const current = c.rounds.find((r) => r.number === s.unlocked)!;
   const solvedAll = allSolved(c, s);
-  const name = (id: string) => s.players[id]?.name ?? "A player";
+  const name = useCallback((id: string) => (id === g.me ? "You" : s.players[id]?.name ?? "A player"), [g.me, s.players]);
   const allFiles = useMemo(() => c.rounds.flatMap((r) => r.files), [c]);
   const openFile = allFiles.find((f) => f.id === fileId) ?? null;
 
-  const [narOpen, setNarOpen] = useState(false);
-  useEffect(() => window.scrollTo(0, 0), []);
+  const holder = (f: EvidenceFile) => (g.party ? holderOf(c, s, f.id, g.online) : null);
+  const canOpen = (f: EvidenceFile) => {
+    const h = holder(f);
+    return h === null || h === g.me;
+  };
 
-  /* clock */
-  useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
+  const view = (f: EvidenceFile) => {
+    setFileId(f.id);
+    setZoom(1);
+    setPanel(null);
+    setPicked({ round: c.rounds.find((r) => r.files.includes(f))!.number, at: s.unlocked });
+    if (!priv.viewed.includes(f.id)) setPriv((x) => ({ ...x, viewed: [...x.viewed, f.id] }));
+  };
+
+  /* ---------- toasts ---------- */
+  const toast = useCallback((text: string, action?: Toast["action"]) => {
+    const id = Date.now() + Math.random();
+    setToasts((t) => [...t.slice(-2), { id, text, action }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
   }, []);
 
-  /* follow the room when a new folder opens */
+  const prev = useRef<{ s: Shared; online: string[] } | null>(null);
+  const panelRef = useRef(panel);
+  panelRef.current = panel;
+  useEffect(() => {
+    const p = prev.current;
+    prev.current = { s, online: g.online };
+    if (!p || !g.party) return;
+    const was = p.s;
+    const here = (ids: string[], st: Shared) => ids.filter((id) => st.players[id] && id !== g.me);
+    for (const id of here(g.online, s)) if (!here(p.online, was).includes(id)) toast(`${s.players[id].name} joined the table`);
+    for (const id of here(p.online, was)) if (!g.online.includes(id) && s.players[id]) toast(`${s.players[id].name} left the table`);
+    if (was.hostId !== s.hostId) toast(s.hostId === g.me ? "You are now the host" : `${name(s.hostId)} is now the host`);
+    if (s.unlocked > was.unlocked && s.hostId !== g.me) toast(`Folder ${s.unlocked} is open`);
+    if (s.lastAnswer && s.lastAnswer !== was.lastAnswer && !s.lastAnswer.correct && s.hostId !== g.me && panelRef.current !== "checkpoint") {
+      toast("The host's answer was wrong. Look again.", { label: "Checkpoint", run: () => setPanel("checkpoint") });
+    }
+    const newMsgs = (s.chat ?? []).filter((m) => m.by !== g.me && !(was.chat ?? []).some((x) => x.id === m.id));
+    if (newMsgs.length && panelRef.current !== "table") {
+      const m = newMsgs[newMsgs.length - 1];
+      toast(`${name(m.by)}: ${m.text.length > 70 ? m.text.slice(0, 70) + "…" : m.text}`, { label: "Reply", run: () => setPanel("table") });
+    }
+    if (s.pointer && s.pointer.at !== was.pointer?.at && s.pointer.by !== g.me) {
+      const f = fileById(c, s.pointer.fileId);
+      if (f) {
+        const h = holderOf(c, s, f.id, g.online);
+        toast(
+          `${name(s.pointer.by)} points to Exhibit ${f.exhibit}${h && h !== g.me ? ` (held by ${name(h)})` : ""}`,
+          !h || h === g.me ? { label: "Open", run: () => view(f) } : undefined
+        );
+      }
+    }
+    for (const id of s.shown ?? []) {
+      if ((was.shown ?? []).includes(id)) continue;
+      const f = fileById(c, id);
+      if (f && was.assign[id] !== g.me) toast(`Exhibit ${f.exhibit} is now visible to everyone`, { label: "Open", run: () => view(f) });
+    }
+  }); // runs after every render, compares with the last snapshot
+
+  /* ---------- room-driven panel changes ---------- */
   const lastUnlocked = useRef(s.unlocked);
   useEffect(() => {
     if (s.unlocked !== lastUnlocked.current) {
@@ -47,14 +104,12 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     }
   }, [s.unlocked]);
 
-  /* everyone sees the reveal when the accusation is made */
   const lastFinished = useRef(s.finishedAt);
   useEffect(() => {
     if (s.finishedAt && s.finishedAt !== lastFinished.current) setPanel("reveal");
     lastFinished.current = s.finishedAt;
   }, [s.finishedAt]);
 
-  /* escape closes things */
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -65,7 +120,16 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     return () => window.removeEventListener("keydown", k);
   }, [panel]);
 
-  /* narration */
+  /* ---------- chat unread ---------- */
+  const chat = s.chat ?? [];
+  const unread = chat.filter((m) => m.by !== g.me && m.at > (priv.chatReadAt ?? 0)).length;
+  useEffect(() => {
+    if (panel === "table" && chat.length && chat[chat.length - 1].at > (priv.chatReadAt ?? 0)) {
+      setPriv((x) => ({ ...x, chatReadAt: chat[chat.length - 1].at }));
+    }
+  }, [panel, chat, priv.chatReadAt, setPriv]);
+
+  /* ---------- narration ---------- */
   const lines = scriptLines(c, s.narration.script);
   const line = lines[Math.min(s.narration.line, lines.length - 1)];
   const spoken = useRef<string>("");
@@ -76,24 +140,9 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     speakLine(c.id, line.id, line.text);
   }, [priv.voice, line, c.id]);
   useEffect(() => () => stopNarration(), []);
-
-  /* timer (frozen while the room is paused) */
-  const clock = (g.pausedAt ?? now) + g.skew;
-  const roundStart = s.roundStartedAt[s.unlocked] ?? clock;
-  const remaining = Math.max(0, current.minutes * 60 - Math.floor((clock - roundStart) / 1000));
-  const timeUp = s.phase === "play" && s.timerEnabled && remaining === 0 && !s.solved[s.unlocked];
-
-  const view = (f: EvidenceFile) => {
-    setFileId(f.id);
-    setZoom(1);
-    if (!priv.viewed.includes(f.id)) setPriv((x) => ({ ...x, viewed: [...x.viewed, f.id] }));
-  };
-
-  const holder = (f: EvidenceFile) => (g.party ? holderOf(c, s, f.id, g.online) : null);
-  const canOpen = (f: EvidenceFile) => {
-    const h = holder(f);
-    return h === null || h === g.me;
-  };
+  useEffect(() => {
+    setNarOpen(false);
+  }, [line?.id]);
 
   const folderState = (r: Round): FolderState => {
     if (r.number > s.unlocked) return "locked";
@@ -102,12 +151,17 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     return "closed";
   };
   const activeRound = c.rounds.find((r) => r.number === folder) ?? current;
+  const playersHere = g.online.filter((id) => s.players[id]).length;
+  const go = (p: Panel) => {
+    setPanel(p);
+  };
+  const accuseTarget: Panel = s.finishedAt ? "reveal" : "accuse";
 
   return (
     <div className="desk" data-unlocked={s.unlocked}>
       {/* ---------- top bar ---------- */}
       <header className="desk-top">
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <Link href={exitHref} className="iconbtn" aria-label="Leave the desk">{Glyph.back}</Link>
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow" style={{ fontSize: 10 }}>
@@ -119,44 +173,48 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
         </div>
         <div className="desk-actions">
           {s.timerEnabled && !solvedAll && (
-            <div className={`timer ${remaining < 120 && !g.pausedAt ? "low" : ""}`} title={`Round ${s.unlocked} timer`}>
-              {g.pausedAt ? "PAUSED" : `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`}
-            </div>
+            <TimerChip g={g} round={current} onTimeUp={() => go("checkpoint")} onUp={() => toast(`Time is up for round ${s.unlocked}. Answer the checkpoint when you are ready.`, { label: "Checkpoint", run: () => setPanel("checkpoint") })} />
           )}
           {g.party && (
-            <button className="btn sm ghost" onClick={() => setPanel("players")} aria-label="Players in the room">
-              <span className="dot" /> {g.online.filter((id) => s.players[id]).length}
+            <button className="btn sm ghost hide-sm" onClick={() => go("table")} aria-label="Table: players and chat">
+              <span className="dot" /> {playersHere}
+              {unread > 0 && <span className="badge">{unread}</span>}
             </button>
           )}
-          <button className="btn sm ghost" onClick={() => setPanel("notebook")}>Notebook</button>
-          <button className="btn sm ghost" onClick={() => setPanel("hints")}>Hints</button>
-          <button className="btn sm ghost hide-sm" onClick={() => setPanel("settings")} aria-label="Settings">Settings</button>
-          <button className="btn sm ghost show-sm" onClick={() => setPanel("settings")} aria-label="Settings">⋯</button>
-          <button
-            className="btn sm"
-            disabled={!solvedAll}
-            onClick={() => setPanel(s.finishedAt ? "reveal" : "accuse")}
-            title={solvedAll ? "" : `Answer all ${c.rounds.length} checkpoints first`}
-          >
+          <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
+          <button className="btn sm ghost hide-sm" onClick={() => go("hints")}>Hints</button>
+          <button className="iconbtn" onClick={() => go("settings")} aria-label="Settings">{Glyph.gear}</button>
+          <button className="btn sm hide-sm" disabled={!solvedAll} onClick={() => go(accuseTarget)} title={solvedAll ? "" : `Answer all ${c.rounds.length} checkpoints first`}>
             {s.finishedAt ? "Report" : "Accuse"}
           </button>
         </div>
       </header>
 
       {g.party && g.hostAway && (
-        <div className="banner">
-          <span>The host has lost connection. The room is paused, and control passes to the next player in a few seconds.</span>
+        <div className="banner" role="status">
+          <span>{name(s.hostId)} (host) has lost connection. The room is paused; control passes to the next player in a few seconds.</span>
         </div>
       )}
-      {g.party && !g.connected && (
-        <div className="banner">
-          <span>Reconnecting to the room…</span>
-        </div>
-      )}
-      {timeUp && !g.pausedAt && (
-        <div className="banner">
-          <span>Time is up for round {s.unlocked}. When you are ready, answer the checkpoint and move on.</span>
-          <button className="btn sm" onClick={() => setPanel("checkpoint")}>Checkpoint</button>
+      {g.party && !g.connected && <div className="banner" role="status"><span>Reconnecting to the room…</span></div>}
+
+      {toasts.length > 0 && (
+        <div className="toasts" role="status" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className="toast">
+              <span>{t.text}</span>
+              {t.action && (
+                <button
+                  className="btn sm"
+                  onClick={() => {
+                    t.action!.run();
+                    setToasts((x) => x.filter((y) => y.id !== t.id));
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -176,6 +234,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                     setFileId(null);
                   }}
                   aria-disabled={st === "locked"}
+                  aria-label={st === "locked" ? `Round ${r.number}, sealed` : `Round ${r.number}, ${r.title}`}
                 >
                   <FolderIcon state={st} size={64} label={`ENV. ${r.number}`} />
                   <div className="folder-label">
@@ -195,7 +254,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   {activeRound.envelope} · {activeRound.files.length} files
                   {g.party && s.mode === "split" && " · split"}
                 </div>
-                <div style={{ fontFamily: "var(--display)", fontSize: 20, marginTop: 2 }}>Round {activeRound.number} — {activeRound.title}</div>
+                <div className="files-title">Round {activeRound.number} — {activeRound.title}</div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button className={`iconbtn ${layout === "list" ? "on" : ""}`} onClick={() => setLayout("list")} aria-label="List view">{Glyph.list}</button>
@@ -203,46 +262,39 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               </div>
             </div>
             {layout === "list" ? (
-              <table className="filetable">
-                <thead>
-                  <tr><th style={{ width: 36 }} /><th>Name</th><th className="hide-sm">Date</th><th style={{ width: 92 }}>Tag</th></tr>
-                </thead>
-                <tbody>
-                  {activeRound.files.map((f) => {
-                    const ok = canOpen(f);
-                    const h = holder(f);
-                    const starred = priv.starred.includes(f.id);
-                    return (
-                      <tr key={f.id} className={`${fileId === f.id ? "sel" : ""} ${ok ? "" : "held"}`} onClick={() => ok && view(f)}>
-                        <td><FileIcon type={f.type} size={20} /></td>
-                        <td>
+              <ul className="filelist">
+                {activeRound.files.map((f) => {
+                  const ok = canOpen(f);
+                  const h = holder(f);
+                  const starred = priv.starred.includes(f.id);
+                  return (
+                    <li key={f.id} className={`${fileId === f.id ? "sel" : ""} ${ok ? "" : "held"}`}>
+                      <button className="fl-main" onClick={() => ok && view(f)} disabled={!ok} aria-label={`Open exhibit ${f.exhibit}, ${f.name}`}>
+                        <FileIcon type={f.type} size={20} />
+                        <span className="fl-name">
                           <span className="ex">Exhibit {f.exhibit} — </span>
                           {f.name}
                           {!ok && h && <span className="heldby">Held by {name(h)} — ask them to read it out</span>}
-                        </td>
-                        <td className="hide-sm mono-cell">{f.date}</td>
-                        <td>
-                          {ok && (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                              <button
-                                className="star"
-                                aria-label={starred ? "Unstar" : "Star"}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPriv((x) => ({ ...x, starred: starred ? x.starred.filter((id) => id !== f.id) : [...x.starred, f.id] }));
-                                }}
-                              >
-                                {Glyph.star(starred)}
-                              </button>
-                              {priv.viewed.includes(f.id) ? <span className="tag">Viewed</span> : <span className="tag new">New</span>}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          {g.party && s.mode === "split" && ok && h === g.me && <span className="heldby mine">Yours to read out</span>}
+                        </span>
+                        <span className="fl-date mono-cell hide-sm">{f.date}</span>
+                      </button>
+                      {ok && (
+                        <span className="fl-tags">
+                          <button
+                            className="star"
+                            aria-label={starred ? `Unstar exhibit ${f.exhibit}` : `Star exhibit ${f.exhibit}`}
+                            onClick={() => setPriv((x) => ({ ...x, starred: starred ? x.starred.filter((id) => id !== f.id) : [...x.starred, f.id] }))}
+                          >
+                            {Glyph.star(starred)}
+                          </button>
+                          {priv.viewed.includes(f.id) ? <span className="tag">Viewed</span> : <span className="tag new">New</span>}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             ) : (
               <div className="filegrid">
                 {activeRound.files.map((f) => {
@@ -260,7 +312,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 })}
               </div>
             )}
-            <CheckpointStrip g={g} round={activeRound} onOpen={() => setPanel("checkpoint")} />
+            <CheckpointStrip g={g} round={activeRound} onOpen={() => go("checkpoint")} />
           </div>
         </section>
 
@@ -275,8 +327,24 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   <span>Exhibit {openFile.exhibit} — {openFile.name}</span>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button className="iconbtn" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))} aria-label="Zoom out">{Glyph.zoomOut}</button>
-                  <button className="iconbtn" onClick={() => setZoom((z) => Math.min(2.2, +(z + 0.15).toFixed(2)))} aria-label="Zoom in">{Glyph.zoomIn}</button>
+                  {g.party && s.mode === "split" && holder(openFile) === g.me && (
+                    <button className="btn sm" onClick={() => g.act({ t: "show", fileId: openFile.id })} title="Let every player open this file">Show all</button>
+                  )}
+                  {g.party && (
+                    <button
+                      className="iconbtn"
+                      onClick={() => {
+                        g.act({ t: "point", fileId: openFile.id });
+                        toast(`You pointed the table to Exhibit ${openFile.exhibit}`);
+                      }}
+                      aria-label="Point the table to this exhibit"
+                      title="Point the table here"
+                    >
+                      {Glyph.point}
+                    </button>
+                  )}
+                  <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))} aria-label="Zoom out">{Glyph.zoomOut}</button>
+                  <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.min(2.2, +(z + 0.15).toFixed(2)))} aria-label="Zoom in">{Glyph.zoomIn}</button>
                 </div>
               </div>
               <div className="viewer-scroll">
@@ -296,41 +364,62 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
         </section>
       </div>
 
-      {/* ---------- narration bar ---------- */}
-      {line && (
-        <footer className="narration">
-          <div className="nar-prog">
-            {lines.map((_, i) => <span key={i} className={i <= s.narration.line ? "on" : ""} />)}
-          </div>
-          <div className="nar-id">{line.id}</div>
-          <div className={`nar-text ${narOpen ? "open" : ""}`} onClick={() => setNarOpen((o) => !o)}>{line.text}</div>
-          <div className="nar-ctl">
-            {g.isHost && (
-              <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
-            )}
-            <button className="iconbtn" onClick={() => speakLine(c.id, line.id, line.text)} aria-label="Replay this line on this device">{Glyph.replay}</button>
-            <button
-              className={`iconbtn ${priv.voice ? "on" : ""}`}
-              onClick={() => {
-                if (priv.voice) stopNarration();
-                spoken.current = "";
-                setPriv((x) => ({ ...x, voice: !x.voice }));
-              }}
-              aria-label={priv.voice ? "Turn narrator voice off" : "Turn narrator voice on"}
-            >
-              {priv.voice ? Glyph.voiceOn : Glyph.voiceOff}
+      {/* ---------- dock: narration + phone tabs ---------- */}
+      <div className="dock">
+        {line && (
+          <footer className="narration">
+            <div className="nar-prog">
+              {lines.map((_, i) => <span key={i} className={i <= s.narration.line ? "on" : ""} />)}
+            </div>
+            <div className="nar-id">{line.id}</div>
+            <button className={`nar-text ${narOpen ? "open" : ""}`} onClick={() => setNarOpen((o) => !o)} aria-expanded={narOpen}>
+              {line.text}
             </button>
-            {g.isHost && (
-              <button className="iconbtn" onClick={() => g.act({ t: "line", d: 1 })} disabled={s.narration.line >= lines.length - 1} aria-label="Next line">{Glyph.next}</button>
-            )}
-          </div>
-        </footer>
-      )}
+            <div className="nar-ctl">
+              {g.isHost && (
+                <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
+              )}
+              <button className="iconbtn" onClick={() => speakLine(c.id, line.id, line.text)} aria-label="Replay this line on this device">{Glyph.replay}</button>
+              <button
+                className={`iconbtn ${priv.voice ? "on" : ""}`}
+                onClick={() => {
+                  if (priv.voice) stopNarration();
+                  spoken.current = "";
+                  setPriv((x) => ({ ...x, voice: !x.voice }));
+                }}
+                aria-label={priv.voice ? "Turn narrator voice off" : "Turn narrator voice on"}
+              >
+                {priv.voice ? Glyph.voiceOn : Glyph.voiceOff}
+              </button>
+              {g.isHost && (
+                <button className="iconbtn" onClick={() => g.act({ t: "line", d: 1 })} disabled={s.narration.line >= lines.length - 1} aria-label="Next line">{Glyph.next}</button>
+              )}
+            </div>
+          </footer>
+        )}
+        <nav className="tabbar" aria-label="Desk">
+          <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
+            {Glyph.files}<span>Files</span>
+          </button>
+          <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
+          <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
+          {g.party && (
+            <button className={panel === "table" ? "on" : ""} onClick={() => go("table")}>
+              {Glyph.table}<span>Table</span>
+              {unread > 0 && <span className="badge">{unread}</span>}
+            </button>
+          )}
+          <button className={panel === "accuse" || panel === "reveal" ? "on" : ""} disabled={!solvedAll} onClick={() => go(accuseTarget)}>
+            {Glyph.accuse}<span>{s.finishedAt ? "Report" : "Accuse"}</span>
+          </button>
+        </nav>
+      </div>
 
       {/* ---------- panels ---------- */}
       {panel && (
         <div className="overlay" onClick={() => setPanel(null)}>
-          <div className={`sheet ${panel === "reveal" ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
+          <div className={`sheet ${panel === "reveal" ? "wide" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="sheet-grip" aria-hidden />
             <button className="iconbtn sheet-x" onClick={() => setPanel(null)} aria-label="Close">{Glyph.close}</button>
             {panel === "checkpoint" && <CheckpointPanel g={g} round={current} onClose={() => setPanel(null)} />}
             {panel === "hints" && (
@@ -346,7 +435,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
             )}
             {panel === "notebook" && <NotebookPanel g={g} />}
             {panel === "settings" && <SettingsPanel g={g} />}
-            {panel === "players" && <PlayersPanel g={g} />}
+            {panel === "table" && <TablePanel g={g} />}
             {panel === "accuse" && <AccusePanel g={g} />}
             {panel === "reveal" && <RevealPanel g={g} onClose={() => setPanel(null)} />}
           </div>
@@ -357,6 +446,38 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
 }
 
 /* =========================================================== */
+
+/** Own clock so the rest of the desk does not depend on it. */
+function TimerChip({ g, round, onTimeUp, onUp }: { g: Game; round: Round; onTimeUp: () => void; onUp: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  const { s } = g;
+  const clock = (g.pausedAt ?? now) + g.skew;
+  const start = s.roundStartedAt[s.unlocked] ?? clock;
+  const remaining = Math.max(0, round.minutes * 60 - Math.floor((clock - start) / 1000));
+  const up = s.phase === "play" && remaining === 0 && !s.solved[s.unlocked];
+  const announced = useRef<number | null>(null);
+  useEffect(() => {
+    if (up && announced.current !== s.unlocked) {
+      announced.current = s.unlocked;
+      onUp();
+    }
+  }, [up, s.unlocked, onUp]);
+  const label = g.pausedAt ? "PAUSED" : `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`;
+  return (
+    <button
+      className={`timer ${remaining < 120 && !g.pausedAt ? "low" : ""} ${up ? "up" : ""}`}
+      title={up ? "Time is up: answer the checkpoint when ready" : `Round ${s.unlocked} timer`}
+      onClick={up ? onTimeUp : undefined}
+      aria-label={up ? "Time is up. Open the checkpoint" : `Time left in round ${s.unlocked}: ${label}`}
+    >
+      {up ? "TIME" : label}
+    </button>
+  );
+}
 
 function CheckpointStrip({ g, round, onOpen }: { g: Game; round: Round; onOpen: () => void }) {
   const { s, c } = g;
@@ -380,26 +501,32 @@ function CheckpointStrip({ g, round, onOpen }: { g: Game; round: Round; onOpen: 
       </div>
     );
   }
+  if (!isCurrent) return null;
+  const suggestions = Object.keys(s.suggest ?? {}).filter((id) => s.players[id]).length;
   return (
     <div className="checkpoint-strip">
       <span>
-        <span className="eyebrow" style={{ display: "block" }}>Checkpoint</span>
+        <span className="eyebrow" style={{ display: "block" }}>Checkpoint{g.party && suggestions ? ` · ${suggestions} suggested` : ""}</span>
         {round.checkpoint.question}
       </span>
-      <button className="btn primary sm" onClick={onOpen}>{g.isHost ? "Answer" : "View"}</button>
+      <button className="btn primary sm" onClick={onOpen}>{g.isHost ? "Answer" : "Suggest"}</button>
     </div>
   );
 }
 
 function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose: () => void }) {
   const { s, c } = g;
-  const [pick, setPick] = useState<string | null>(null);
+  const [pick, setPick] = useState<string | null>(g.isHost ? null : s.suggest?.[g.me] ?? null);
   const solved = s.solved[round.number];
   const tries = s.wrongTries[round.number] ?? 0;
   const ans = round.checkpoint.choices.find((ch) => ch.id === round.checkpoint.answer)!;
   const last = s.lastAnswer && s.lastAnswer.round === round.number ? s.lastAnswer : null;
   const hasNext = c.rounds.some((r) => r.number === round.number + 1);
   const isLast = round.number === lastRound(c);
+  const tally: Record<string, string[]> = {};
+  if (g.party) {
+    for (const [id, ch] of Object.entries(s.suggest ?? {})) if (s.players[id]) (tally[ch] ??= []).push(id === g.me ? "you" : s.players[id].name);
+  }
 
   return (
     <div>
@@ -429,12 +556,25 @@ function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose
         </div>
       ) : (
         <>
-          {!g.isHost && <p className="muted-dark" style={{ marginTop: -6 }}>Talk it through together. The host submits the room&apos;s answer.</p>}
+          {g.party && (
+            <p className="muted-dark" style={{ marginTop: -6 }}>
+              {g.isHost ? "Players' suggestions show beside each answer. You submit the room's answer." : "Tap an answer to suggest it. The host sees everyone's pick and submits."}
+            </p>
+          )}
           <div className="choices">
             {round.checkpoint.choices.map((ch) => (
-              <label key={ch.id} className={`choice ${pick === ch.id ? "on" : ""} ${last && !last.correct && last.choice === ch.id ? "wrong" : ""} ${g.isHost ? "" : "readonly"}`}>
-                <input type="radio" name="cp" checked={pick === ch.id} disabled={!g.isHost} onChange={() => setPick(ch.id)} />
-                <span>{ch.label}</span>
+              <label key={ch.id} className={`choice ${pick === ch.id ? "on" : ""} ${last && !last.correct && last.choice === ch.id ? "wrong" : ""}`}>
+                <input
+                  type="radio"
+                  name="cp"
+                  checked={pick === ch.id}
+                  onChange={() => {
+                    setPick(ch.id);
+                    if (!g.isHost) g.act({ t: "suggest", choice: ch.id });
+                  }}
+                />
+                <span style={{ flex: 1 }}>{ch.label}</span>
+                {tally[ch.id]?.length ? <span className="votes">{tally[ch.id].join(", ")}</span> : null}
               </label>
             ))}
           </div>
@@ -498,7 +638,7 @@ function NotebookPanel({ g }: { g: Game }) {
       </div>
       <p className="muted-dark" style={{ fontSize: 13, margin: "8px 0 18px" }}>Tap a name to mark it suspicious, cleared, or unmarked.</p>
       <h2 className="sheet-h">Notes</h2>
-      <textarea className="notes" value={priv.notes} placeholder="Times, contradictions, questions…" onChange={(e) => { const v = e.target.value; setPriv((x) => ({ ...x, notes: v })); }} />
+      <textarea className="notes" value={priv.notes} placeholder="Times, contradictions, questions…" aria-label="Your notes" onChange={(e) => { const v = e.target.value; setPriv((x) => ({ ...x, notes: v })); }} />
       {priv.starred.length > 0 && (
         <>
           <h2 className="sheet-h" style={{ marginTop: 18 }}>Starred exhibits</h2>
@@ -532,14 +672,28 @@ function SettingsPanel({ g }: { g: Game }) {
   );
 }
 
-function PlayersPanel({ g }: { g: Game }) {
+function TablePanel({ g }: { g: Game }) {
   const { s } = g;
   const [copied, setCopied] = useState(false);
+  const [text, setText] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const chat = s.chat ?? [];
   const link = typeof window !== "undefined" && g.room ? `${window.location.origin}/room/${g.room.code}` : "";
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [chat.length]);
+  const send = () => {
+    const t = text.trim();
+    if (!t) return;
+    g.act({ t: "say", text: t });
+    setText("");
+  };
+  const time = (at: number) => new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   return (
     <div>
       <div className="eyebrow">Room {g.room?.code}</div>
-      <h2 className="sheet-h">Detectives at the table</h2>
+      <h2 className="sheet-h">The table</h2>
       <ul className="roster">
         {sortedPlayers(s).map((id) => (
           <li key={id}>
@@ -547,14 +701,41 @@ function PlayersPanel({ g }: { g: Game }) {
             <span style={{ flex: 1 }}>{s.players[id].name}{id === g.me ? " (you)" : ""}</span>
             {id === s.hostId && <span className="tag new">Host</span>}
             {!g.online.includes(id) && <span className="muted-dark" style={{ fontSize: 13 }}>away</span>}
+            {g.isHost && id !== g.me && g.online.includes(id) && (
+              <button className="btn ghost sm" onClick={() => g.act({ t: "handover", id })}>Make host</button>
+            )}
           </li>
         ))}
       </ul>
-      <p className="muted-dark" style={{ fontSize: 14 }}>
-        Evidence is {s.mode === "split" ? "split between players. Read your files aloud to the others." : "shared. Everyone sees every unlocked file."}
+      <p className="muted-dark" style={{ fontSize: 14, margin: "0 0 14px" }}>
+        {s.mode === "split"
+          ? "Evidence is split. Read your files out, or use Show all on a file to let everyone open it."
+          : "Evidence is shared. Everyone sees every unlocked file."}
       </p>
+
+      <div className="eyebrow" style={{ marginBottom: 8 }}>Table talk</div>
+      <div className="chat" ref={listRef}>
+        {chat.length === 0 && <p className="muted-dark" style={{ margin: 0, fontSize: 14 }}>Not on a call? Talk it through here. Messages go to everyone at the table.</p>}
+        {chat.map((m) => (
+          <div key={m.id} className={`msg ${m.by === g.me ? "mine" : ""}`}>
+            <div className="msg-meta">{m.by === g.me ? "You" : s.players[m.by]?.name ?? "Someone"} · {time(m.at)}</div>
+            <div>{m.text}</div>
+          </div>
+        ))}
+      </div>
+      <form
+        className="chat-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+      >
+        <input className="field-input" value={text} onChange={(e) => setText(e.target.value)} placeholder="Say something to the table" aria-label="Message the table" maxLength={280} enterKeyHint="send" />
+        <button className="iconbtn send" aria-label="Send" disabled={!text.trim()}>{Glyph.send}</button>
+      </form>
+
       {link && (
-        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(link).then(() => setCopied(true), () => {}); }}>
+        <button className="btn sm" style={{ marginTop: 16 }} onClick={() => { navigator.clipboard?.writeText(link).then(() => setCopied(true), () => {}); }}>
           {copied ? "Link copied" : "Copy invite link"}
         </button>
       )}
@@ -583,16 +764,19 @@ function AccusePanel({ g }: { g: Game }) {
   const { c, s } = g;
   const mine = s.votes[g.me];
   const [v, setV] = useState<Vote>(mine ?? { suspect: "", method: "", motive: "" });
+  const [confirming, setConfirming] = useState(false);
   const complete = !!(v.suspect && v.method && v.motive);
   const tally = (k: keyof Vote) => {
     const t: Record<string, string[]> = {};
     Object.entries(s.votes).forEach(([id, vote]) => {
       if (!s.players[id]) return;
-      (t[vote[k]] ??= []).push(s.players[id].name);
+      (t[vote[k]] ??= []).push(id === g.me ? "you" : s.players[id].name);
     });
     return t;
   };
-  const voters = Object.keys(s.votes).filter((id) => s.players[id]).length;
+  const here = g.online.filter((id) => s.players[id]);
+  const voted = here.filter((id) => s.votes[id]).length;
+  const myVoteSent = mine && mine.suspect === v.suspect && mine.method === v.method && mine.motive === v.motive;
 
   if (s.finishedAt) return <p>The accusation has been made.</p>;
 
@@ -604,21 +788,32 @@ function AccusePanel({ g }: { g: Game }) {
         {c.narration.accusation[0].text} There is no second chance.
         {g.party && " Everyone votes. The host submits the room's answer."}
       </p>
-      <ChoiceGroup title="Who" items={c.suspects.map((x) => ({ id: x.id, label: `${x.name} — ${x.role}` }))} val={v.suspect} set={(x) => setV({ ...v, suspect: x })} tally={g.party ? tally("suspect") : undefined} />
-      <ChoiceGroup title="How" items={c.accusation.methods} val={v.method} set={(x) => setV({ ...v, method: x })} tally={g.party ? tally("method") : undefined} />
-      <ChoiceGroup title="Why" items={c.accusation.motives} val={v.motive} set={(x) => setV({ ...v, motive: x })} tally={g.party ? tally("motive") : undefined} />
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+      <ChoiceGroup title="Who" items={c.suspects.map((x) => ({ id: x.id, label: `${x.name} — ${x.role}` }))} val={v.suspect} set={(x) => { setV({ ...v, suspect: x }); setConfirming(false); }} tally={g.party ? tally("suspect") : undefined} />
+      <ChoiceGroup title="How" items={c.accusation.methods} val={v.method} set={(x) => { setV({ ...v, method: x }); setConfirming(false); }} tally={g.party ? tally("method") : undefined} />
+      <ChoiceGroup title="Why" items={c.accusation.motives} val={v.motive} set={(x) => { setV({ ...v, motive: x }); setConfirming(false); }} tally={g.party ? tally("motive") : undefined} />
+      <div className="sticky-actions">
         {g.party && (
-          <button className="btn" disabled={!complete} onClick={() => g.act({ t: "vote", vote: v })}>
-            {mine ? "Update my vote" : "Cast my vote"}
+          <button className="btn" disabled={!complete || !!myVoteSent} onClick={() => g.act({ t: "vote", vote: v })}>
+            {myVoteSent ? "Vote cast" : mine ? "Update my vote" : "Cast my vote"}
           </button>
         )}
-        {g.isHost && (
-          <button className="btn primary" disabled={!complete} onClick={() => g.act({ t: "accuse", vote: v })}>
-            {g.party ? "Submit the room's accusation" : "Submit and close the file"}
-          </button>
+        {g.isHost &&
+          (confirming ? (
+            <button className="btn primary" onClick={() => g.act({ t: "accuse", vote: v })}>Submit anyway</button>
+          ) : (
+            <button
+              className="btn primary"
+              disabled={!complete}
+              onClick={() => (g.party && voted < here.length ? setConfirming(true) : g.act({ t: "accuse", vote: v }))}
+            >
+              {g.party ? "Submit the room's accusation" : "Submit and close the file"}
+            </button>
+          ))}
+        {g.party && (
+          <span className="muted-dark" style={{ fontSize: 14 }}>
+            {confirming ? `Only ${voted} of ${here.length} at the table have voted.` : `${voted} of ${here.length} voted`}
+          </span>
         )}
-        {g.party && <span className="muted-dark" style={{ fontSize: 14 }}>{voters} of {Object.keys(s.players).length} voted</span>}
       </div>
     </div>
   );
@@ -640,7 +835,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
           {g.isHost ? (
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn ghost sm" disabled={step === 0} onClick={() => g.act({ t: "reveal", d: -1 })}>Back</button>
-              <button className="btn ghost sm" onClick={() => g.act({ t: "reveal", d: lines.length })}>Skip to report</button>
+              <button className="btn ghost sm" onClick={() => g.act({ t: "reveal", d: lines.length })}>Skip</button>
               <button className="btn primary" onClick={() => g.act({ t: "reveal", d: 1 })}>Continue</button>
             </div>
           ) : (
@@ -661,11 +856,11 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
 
   return (
     <div>
-      <div className="reportcard paper" style={{ padding: "34px 34px 26px" }}>
+      <div className="reportcard paper" style={{ padding: "34px 30px 26px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
           <div>
             <div className="small" style={{ letterSpacing: ".25em" }}>THE BLACKWOOD BUREAU · CASE REPORT</div>
-            <h2 style={{ fontFamily: "var(--display)", fontSize: 26, fontWeight: 400, margin: "6px 0 0" }}>Case No. {c.number} — {c.title}</h2>
+            <h2 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 400, margin: "6px 0 0" }}>Case No. {c.number} — {c.title}</h2>
           </div>
           <span className="stamp" style={{ fontSize: 18, transform: "rotate(-6deg)", borderWidth: 3 }}>{right === 3 ? "Solved" : "Unsolved"}</span>
         </div>

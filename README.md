@@ -22,18 +22,34 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon or publishable key>
 ```
 
-Without them, rooms run in **same-device mode** over `BroadcastChannel`: every tab in one browser can
-join, which is handy for development, but phones cannot reach each other.
+Other transports, chosen in this order when Supabase is not set:
+
+- `NEXT_PUBLIC_ROOM_RELAY=http://host:8787` uses the dependency-free relay in `scripts/relay.mjs`
+  (`node scripts/relay.mjs`). Good for LAN play and the end-to-end tests; it can add latency, jitter and loss.
+- Otherwise, **same-device mode** over `BroadcastChannel`: tabs in one browser only.
 
 How a room works:
 
-- The host taps **Open a room** on the case cover and gets a 5-character code and link. Players join at
-  `/room/<CODE>`, enter a name and wait in the lobby. Up to 6 players.
+- The host taps **Open a room** on the case cover and shares the 5-character code or link. Players join
+  at `/room/<CODE>` (or **Join a room** on the home page), enter a name and wait in the lobby. Up to 6.
 - The host picks **shared** or **split** evidence and whether timers run, then starts the case.
-- The host moves the narration, submits checkpoint answers and opens each folder for everyone. Any
-  player can replay a line, use hints (private), take notes (private) and vote on the accusation.
-- The room's state lives on every device. If the host drops, the room pauses and control passes to
-  the next player who joined. A player who rejoins with the same name gets their seat back.
+- The host moves the narration, submits checkpoint answers and opens each folder for everyone.
+- Built for players who are not in the same place: a **table chat**, **suggested answers** shown to the
+  host with names, **point** (send everyone a link to an exhibit), and in split mode **Show all** to
+  release a file you hold. Hints and notes stay private to each device.
+- Everyone votes on the accusation; the host submits (with a confirmation if votes are missing) and
+  the reveal plays on every screen, then a shared report card.
+
+What keeps it steady:
+
+- Every device holds the room state; the host's device is the only writer and versions every change.
+- Player actions are queued, numbered and retried until the host acknowledges them, so nothing is lost
+  or applied twice on a bad connection. Devices that fall behind are caught up from the heartbeat.
+- If the host drops, everyone sees the room pause, and control passes to the next player who joined.
+  The host can also hand over on purpose. Timers are corrected for devices whose clocks are wrong.
+- A closed tab reopens into the same seat without asking for a name. A person on a new phone gets their
+  seat back by entering the same name. The room survives everyone leaving and coming back.
+- The host can remove a player from the lobby; a 7th player is told the room is full.
 
 ## Media
 
@@ -64,12 +80,18 @@ answer protection (answers ship in the page in this build).
 
 ## Tests
 
-End-to-end tests drive a real browser through a full solo case, a three-player room (split evidence,
-host hand-over, rejoin, votes, shared reveal) and room edge cases (removing a player, a host losing
-network and coming back, refreshes). Room tests use same-device mode, so run the server without the
-Supabase keys. They need Playwright and a running server:
+End-to-end tests drive real browsers. Each player gets a separate browser context (own storage, own
+network, optionally a skewed clock), connected through the relay with added lag and packet loss.
+
+| Test | Covers |
+| --- | --- |
+| `tests/e2e/solo.js` | A full solo case: wrong answers, hints, narration, all five rounds, reload, accusation, reveal, report, print kit |
+| `tests/e2e/mobile.js` | Phone navigation: tab bar, sheets, every round 1 exhibit, nothing wider than the screen (all 34 exhibits), leaving the desk, party desk and chat on a phone |
+| `tests/e2e/remote-2p.js` | Two devices: join by code, split deal, Show all, pointing, chat and unread badge, timers across a 4-minute clock skew, suggestions, wrong-answer notice, closed tab reopening into the same seat, host network loss and hand-over, finishing from the phone, vote confirmation, shared reveal |
+| `tests/e2e/remote-4p.js` | Four to six devices: simultaneous joins, duplicate names, removing a player, split across four, late joiner, a player dropping and their files being passed on, deliberate host hand-over, four messages at once in the same order everywhere, three suggestions, partial votes, reveal on five screens, everyone leaving and the room surviving, room full |
 
 ```bash
-npm run build && npm start &
+PORT=8787 RELAY_LATENCY=120 RELAY_JITTER=150 RELAY_DROP=0.05 node scripts/relay.mjs &
+NEXT_PUBLIC_ROOM_RELAY=http://localhost:8787 npm run build && npm start &
 BASE=http://localhost:3000 npm run test:e2e
 ```
