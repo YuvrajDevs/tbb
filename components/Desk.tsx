@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
-import { briefPlaying, isSpeaking, speakLine, stopLines, stopNarration } from "@/lib/game/narrator";
+import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
@@ -57,16 +57,6 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const name = useCallback((id: string) => (id === g.me ? "You" : s.players[id]?.name ?? "A player"), [g.me, s.players]);
   const allFiles = useMemo(() => c.rounds.flatMap((r) => r.files), [c]);
   const openFile = allFiles.find((f) => f.id === fileId) ?? null;
-  const brief = openFile ? c.narration.briefs.find((b) => b.id === `E-${String(openFile.exhibit).padStart(2, "0")}`) : undefined;
-  // which file's brief is playing; closing or switching the file stops it
-  const [briefFor, setBriefFor] = useState<string | null>(null);
-  useEffect(() => {
-    if (briefFor && briefFor !== fileId) {
-      stopNarration();
-      setBriefFor(null);
-      window.setTimeout(() => readCurrent.current(), 400); // read any line that waited for the brief
-    }
-  }, [fileId, briefFor]);
 
   const holder = (f: EvidenceFile) => (g.party ? holderOf(c, s, f.id, g.online) : null);
   const canOpen = (f: EvidenceFile) => {
@@ -179,8 +169,8 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     if (at >= lines.length - 1) return;
     const from = line?.id;
     window.setTimeout(() => {
-      // skip if something changed meanwhile: the line moved on, or a brief started
-      if (lineIdRef.current !== from || briefPlaying()) return;
+      // skip if the line moved on meanwhile
+      if (lineIdRef.current !== from) return;
       g.act(reveal ? { t: "reveal", d: 1 } : { t: "line", d: 1 });
     }, 700);
   };
@@ -190,15 +180,13 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     (l: { id: string; text: string }) => speakLine(c.id, l.id, l.text, () => lineEnded.current()),
     [c.id]
   );
-  // Reads the current line if it hasn't been read yet. A brief that is playing is never cut off:
-  // the line waits, and is read when the brief ends (see `resumeLines`).
+  // Reads the current line if it hasn't been read yet.
   const readCurrent = useRef<() => void>(() => {});
   readCurrent.current = () => {
     if (!priv.voice || !line || spoken.current === line.id) return;
     if (speak(line)) spoken.current = line.id;
   };
   useEffect(() => readCurrent.current(), [priv.voice, line, speak]);
-  const resumeLines = useCallback(() => window.setTimeout(() => readCurrent.current(), 400), []);
   useEffect(
     () => () => {
       stopNarration();
@@ -455,46 +443,10 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                       {Glyph.point}
                     </button>
                   )}
-                  {brief && canOpen(openFile) && (
-                    <button
-                      className={`btn sm ${briefFor === openFile.id ? "" : "ghost"}`}
-                      onClick={() => {
-                        if (briefFor === openFile.id) {
-                          stopNarration();
-                          setBriefFor(null);
-                          resumeLines();
-                          return;
-                        }
-                        const id = openFile.id;
-                        setBriefFor(id);
-                        speakLine(
-                          c.id,
-                          brief.id,
-                          brief.text,
-                          () => {
-                            setBriefFor((b) => (b === id ? null : b));
-                            resumeLines();
-                          },
-                          "brief"
-                        );
-                      }}
-                      aria-label={briefFor === openFile.id ? "Stop the brief" : "Hear a brief of this exhibit"}
-                      title="The narrator sums up what this exhibit says"
-                    >
-                      {briefFor === openFile.id ? Glyph.pause : Glyph.voiceOn}
-                      <span className="hide-xs" style={{ marginLeft: 6 }}>{briefFor === openFile.id ? "Stop" : "Brief"}</span>
-                    </button>
-                  )}
                   <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))} aria-label="Zoom out">{Glyph.zoomOut}</button>
                   <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.min(2.2, +(z + 0.15).toFixed(2)))} aria-label="Zoom in">{Glyph.zoomIn}</button>
                 </div>
               </div>
-              {brief && briefFor === openFile.id && (
-                <div className="brief-cap" role="status">
-                  <span className="eyebrow">Brief · Exhibit {openFile.exhibit}</span>
-                  <p>{brief.text}</p>
-                </div>
-              )}
               <ZoomBox zoom={zoom}>
                 {canOpen(openFile) ? <Evidence file={openFile} /> : <p className="muted-dark">This file is now held by another player.</p>}
               </ZoomBox>
@@ -526,8 +478,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
               )}
               <button className="iconbtn" onClick={() => {
-                  stopNarration(); // an explicit replay may cut a brief short
-                  setBriefFor(null);
+                  stopNarration();
                   speak(line);
                 }} aria-label="Replay this line on this device">{Glyph.replay}</button>
               <button
@@ -535,7 +486,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 onClick={() => {
                   if (auto && priv.voice) {
                     setAuto(false);
-                    stopLines(); // stops the narration, never a brief that is playing
+                    stopNarration();
                     return;
                   }
                   setAuto(true);

@@ -53,7 +53,7 @@ One voice for every line. `B-03.mp3` was made in VoiceStudio (OmniVoice engine) 
 `male, middle-aged, very low pitch, american accent`, speed 0.88, seed 7, broadcast effect. Every other line
 is cloned from that recording (reference audio `B-03`, its text as reference text, speed 0.88, seed 7), so
 they all share the exact same voice. Silence trimmed, MP3 96 kbps mono. Numbers such as 9:40 are spelled out
-for the voice. All 90 files are in place.
+for the voice. All 56 files are in place.
 
 **Introduction** (the narrator explains the case before the briefing)
 
@@ -137,12 +137,6 @@ Each revealed hint is read in a casual voice: `H-<round>-<1..3>.mp3`, 15 files; 
 as a toast: `N-01` no file opened yet, `N-02` a file still unread, `N-03` folder read but question
 unanswered, `N-04`–`N-06` general (rotate), `N-07` every checkpoint done, time to accuse. Nudges need
 the narrator voice on and stay quiet during the accusation and reveal.
-
-**Exhibit briefs** (`E-01.mp3` … `E-34.mp3`, same voice)
-
-Each exhibit has a **Brief** button in the file viewer. The narrator sums up what the document says,
-never what it means, and the words show as a caption while it plays. The text is in `narration.briefs`
-in `lib/cases/hollow-pines.ts`.
 
 ## Music and sound effects — `public/audio/`
 

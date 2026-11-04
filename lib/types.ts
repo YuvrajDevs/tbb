@@ -69,8 +69,6 @@ export interface CaseFile {
     reveal: NarrationLine[];
     /** casual spoken versions of each round's three hints (id H-<round>-<n>), read when a hint is revealed */
     hints: Record<number, NarrationLine[]>;
-    /** a spoken brief of each exhibit (id E-<exhibit, two digits>), read when the player asks for it */
-    briefs: NarrationLine[];
     /** casual nudges spoken after a quiet spell, chosen by situation */
     nudges: Record<NudgeKind, NarrationLine[]>;
   };

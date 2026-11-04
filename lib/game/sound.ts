@@ -85,22 +85,52 @@ function unlockOnGesture() {
   evs.forEach((e) => window.addEventListener(e, go, true));
 }
 
+// The track is looped by hand rather than with `loop`: some browsers stall at the end of a looped MP3
+// and never restart. A watchdog also restarts it if it is ever paused or frozen without being asked to.
+let lastTime = -1;
+let frozenFor = 0;
+let watchdog: number | null = null;
+function keepAlive() {
+  if (!wanted || !music || settings.music === 0) return;
+  if (music.paused || music.ended) {
+    if (music.ended) music.currentTime = 0;
+    void music.play().catch(unlockOnGesture);
+    frozenFor = 0;
+  } else if (Math.abs(music.currentTime - lastTime) < 0.01) {
+    // playing but not moving: a stalled download; reload from the same spot after a few seconds
+    frozenFor += 2;
+    if (frozenFor >= 6) {
+      const at = music.currentTime;
+      music.load();
+      music.currentTime = at;
+      void music.play().catch(() => {});
+      frozenFor = 0;
+    }
+  } else frozenFor = 0;
+  lastTime = music.currentTime;
+}
+
 export function startMusic() {
   load();
   wanted = true;
   if (!music) {
     music = new Audio("/audio/music-suspense.mp3");
-    music.loop = true;
+    music.loop = false;
     music.preload = "auto";
     (window as unknown as { __bbMusic?: HTMLAudioElement }).__bbMusic = music; // for checking playback in the console
-    // if the browser pauses it on its own (another tab's media, a phone call, a stall), pick it up again
+    music.addEventListener("ended", () => {
+      if (!wanted || !music) return;
+      music.currentTime = 0;
+      void music.play().catch(() => {});
+    });
+    // if the browser pauses it on its own (another tab's media, a device change), pick it up again
     music.addEventListener("pause", () => {
-      if (wanted && settings.music > 0 && !document.hidden) window.setTimeout(() => music?.paused && void music.play().catch(unlockOnGesture), 800);
+      if (wanted && settings.music > 0) window.setTimeout(() => music?.paused && void music.play().catch(unlockOnGesture), 800);
     });
-    music.addEventListener("ended", () => wanted && void music?.play().catch(() => {}));
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && wanted && music?.paused && settings.music > 0) void music.play().catch(unlockOnGesture);
+      if (!document.hidden) keepAlive();
     });
+    watchdog = window.setInterval(keepAlive, 2000);
   }
   if (!music.paused) return applyVolume();
   music.volume = settings.music * (ducked ? DUCK : 1);
