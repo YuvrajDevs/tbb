@@ -37,9 +37,18 @@ function tts(text: string, done: () => void) {
   } catch {}
 }
 
-/** Plays one line. `onEnd` runs only if the line plays to its end (not when stopped or replaced). */
-export function speakLine(caseId: string, id: string, text: string, onEnd?: () => void) {
+/** what is playing now: a narration line, or an exhibit brief (which narration must not cut off) */
+let kind: "line" | "brief" = "line";
+
+/**
+ * Plays one line. `onEnd` runs only if the line plays to its end (not when stopped or replaced).
+ * A narration line never interrupts a brief that is playing: it is skipped and the caller can retry later.
+ * Returns false when skipped.
+ */
+export function speakLine(caseId: string, id: string, text: string, onEnd?: () => void, as: "line" | "brief" = "line") {
+  if (as === "line" && briefPlaying()) return false;
   stop();
+  kind = as;
   const mine = token;
   const done = () => {
     if (token !== mine) return;
@@ -47,7 +56,10 @@ export function speakLine(caseId: string, id: string, text: string, onEnd?: () =
     onEnd?.();
   };
   const src = `/cases/${caseId}/narration/${id}.mp3`;
-  if (missing.has(src)) return tts(text, done);
+  if (missing.has(src)) {
+    tts(text, done);
+    return true;
+  }
   const a = new Audio(src);
   current = a;
   a.onplay = () => current === a && duckMusic(true);
@@ -59,9 +71,20 @@ export function speakLine(caseId: string, id: string, text: string, onEnd?: () =
   a.play().catch(() => {
     /* autoplay blocked or file missing; onerror covers the missing case */
   });
+  return true;
 }
 
 export const stopNarration = stop;
+
+/** true while an exhibit brief is playing */
+export function briefPlaying() {
+  return kind === "brief" && isSpeaking();
+}
+
+/** stops narration lines but leaves a playing brief alone */
+export function stopLines() {
+  if (!briefPlaying()) stop();
+}
 
 /** true while a recorded line or the device voice is speaking */
 export function isSpeaking() {

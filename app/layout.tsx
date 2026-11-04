@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { MusicHost } from "@/components/MusicHost";
 
 export const metadata: Metadata = {
   title: "The Blackwood Bureau",
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <MusicHost />
         <main>{children}</main>
       </body>
     </html>

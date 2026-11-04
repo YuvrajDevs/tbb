@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
-import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
-import { playClick, playPageTurn, setSound, startMusic, stopMusic, useSound } from "@/lib/game/sound";
+import { briefPlaying, isSpeaking, speakLine, stopLines, stopNarration } from "@/lib/game/narrator";
+import { playClick, playPageTurn, setSound, useSound } from "@/lib/game/sound";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
@@ -37,8 +37,18 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
     window.scrollTo(0, 0);
-    startMusic();
-    return () => stopMusic();
+  }, []);
+  // the desk shell leaves room at the bottom for the narration dock, whatever its height
+  const deskRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const d = dockRef.current;
+    if (!d) return;
+    const set = () => deskRef.current?.style.setProperty("--dock-h", `${d.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(d);
+    return () => ro.disconnect();
   }, []);
 
   const current = c.rounds.find((r) => r.number === s.unlocked)!;
@@ -53,6 +63,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     if (briefFor && briefFor !== fileId) {
       stopNarration();
       setBriefFor(null);
+      window.setTimeout(() => readCurrent.current(), 400); // read any line that waited for the brief
     }
   }, [fileId, briefFor]);
 
@@ -165,18 +176,28 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     const reveal = s.narration.script === "reveal";
     const at = reveal ? s.revealStep : s.narration.line;
     if (at >= lines.length - 1) return;
-    window.setTimeout(() => g.act(reveal ? { t: "reveal", d: 1 } : { t: "line", d: 1 }), 700);
+    const from = line?.id;
+    window.setTimeout(() => {
+      // skip if something changed meanwhile: the line moved on, or a brief started
+      if (lineIdRef.current !== from || briefPlaying()) return;
+      g.act(reveal ? { t: "reveal", d: 1 } : { t: "line", d: 1 });
+    }, 700);
   };
+  const lineIdRef = useRef(line?.id);
+  lineIdRef.current = line?.id;
   const speak = useCallback(
     (l: { id: string; text: string }) => speakLine(c.id, l.id, l.text, () => lineEnded.current()),
     [c.id]
   );
-  useEffect(() => {
-    if (!priv.voice || !line) return;
-    if (spoken.current === line.id) return;
-    spoken.current = line.id;
-    speak(line);
-  }, [priv.voice, line, speak]);
+  // Reads the current line if it hasn't been read yet. A brief that is playing is never cut off:
+  // the line waits, and is read when the brief ends (see `resumeLines`).
+  const readCurrent = useRef<() => void>(() => {});
+  readCurrent.current = () => {
+    if (!priv.voice || !line || spoken.current === line.id) return;
+    if (speak(line)) spoken.current = line.id;
+  };
+  useEffect(() => readCurrent.current(), [priv.voice, line, speak]);
+  const resumeLines = useCallback(() => window.setTimeout(() => readCurrent.current(), 400), []);
   useEffect(
     () => () => {
       stopNarration();
@@ -247,7 +268,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const accuseTarget: Panel = s.finishedAt ? "reveal" : "accuse";
 
   return (
-    <div className="desk" data-unlocked={s.unlocked}>
+    <div className="desk" data-unlocked={s.unlocked} ref={deskRef}>
       {/* ---------- top bar ---------- */}
       <header className="desk-top">
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -440,11 +461,21 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                         if (briefFor === openFile.id) {
                           stopNarration();
                           setBriefFor(null);
+                          resumeLines();
                           return;
                         }
                         const id = openFile.id;
                         setBriefFor(id);
-                        speakLine(c.id, brief.id, brief.text, () => setBriefFor((b) => (b === id ? null : b)));
+                        speakLine(
+                          c.id,
+                          brief.id,
+                          brief.text,
+                          () => {
+                            setBriefFor((b) => (b === id ? null : b));
+                            resumeLines();
+                          },
+                          "brief"
+                        );
                       }}
                       aria-label={briefFor === openFile.id ? "Stop the brief" : "Hear a brief of this exhibit"}
                       title="The narrator sums up what this exhibit says"
@@ -479,7 +510,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       </div>
 
       {/* ---------- dock: narration + phone tabs ---------- */}
-      <div className="dock">
+      <div className="dock" ref={dockRef}>
         {line && (
           <footer className="narration">
             <div className="nar-prog">
@@ -493,13 +524,17 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {g.isHost && (
                 <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
               )}
-              <button className="iconbtn" onClick={() => speak(line)} aria-label="Replay this line on this device">{Glyph.replay}</button>
+              <button className="iconbtn" onClick={() => {
+                  stopNarration(); // an explicit replay may cut a brief short
+                  setBriefFor(null);
+                  speak(line);
+                }} aria-label="Replay this line on this device">{Glyph.replay}</button>
               <button
                 className={`iconbtn ${auto && priv.voice ? "on" : ""}`}
                 onClick={() => {
                   if (auto && priv.voice) {
                     setAuto(false);
-                    stopNarration();
+                    stopLines(); // stops the narration, never a brief that is playing
                     return;
                   }
                   setAuto(true);

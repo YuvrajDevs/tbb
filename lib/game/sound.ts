@@ -64,15 +64,25 @@ function applyVolume() {
   else if (wanted && music.paused) void music.play().catch(() => {});
 }
 
-// Browsers block sound until the person has touched the page; retry on the first touch.
+// Browsers block sound until the person has interacted with the page. Keep listening for a tap, click
+// or key until the music has actually started (one listener set, however many times play was blocked).
+let listening = false;
 function unlockOnGesture() {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  const evs = ["pointerdown", "click", "touchend", "keydown"] as const;
   const go = () => {
-    window.removeEventListener("pointerdown", go);
-    window.removeEventListener("keydown", go);
-    if (wanted) applyVolume();
+    if (!wanted || !music || settings.music === 0) return;
+    music.volume = settings.music * (ducked ? DUCK : 1);
+    music
+      .play()
+      .then(() => {
+        listening = false;
+        evs.forEach((e) => window.removeEventListener(e, go, true));
+      })
+      .catch(() => {});
   };
-  window.addEventListener("pointerdown", go, { once: true });
-  window.addEventListener("keydown", go, { once: true });
+  evs.forEach((e) => window.addEventListener(e, go, true));
 }
 
 export function startMusic() {
@@ -82,10 +92,19 @@ export function startMusic() {
     music = new Audio("/audio/music-suspense.mp3");
     music.loop = true;
     music.preload = "auto";
+    (window as unknown as { __bbMusic?: HTMLAudioElement }).__bbMusic = music; // for checking playback in the console
+    // if the browser pauses it on its own (another tab's media, a phone call, a stall), pick it up again
+    music.addEventListener("pause", () => {
+      if (wanted && settings.music > 0 && !document.hidden) window.setTimeout(() => music?.paused && void music.play().catch(unlockOnGesture), 800);
+    });
+    music.addEventListener("ended", () => wanted && void music?.play().catch(() => {}));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && wanted && music?.paused && settings.music > 0) void music.play().catch(unlockOnGesture);
+    });
   }
-  music.volume = 0;
-  applyVolume();
-  if (music.paused && settings.music > 0) music.play().catch(unlockOnGesture);
+  if (!music.paused) return applyVolume();
+  music.volume = settings.music * (ducked ? DUCK : 1);
+  if (settings.music > 0) music.play().catch(unlockOnGesture);
 }
 
 export function stopMusic() {
