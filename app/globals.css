@@ -259,6 +259,8 @@ button { font-family: inherit; }
 .notes:focus { outline: 1px solid var(--manila); }
 .toggle { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; color: var(--text-2); }
 .toggle input { margin-top: 5px; accent-color: var(--manila); }
+.toggle.range { cursor: default; }
+.toggle.range input[type=range] { display: block; width: 100%; max-width: 320px; margin: 10px 0 2px; height: 28px; cursor: pointer; }
 .reveal-line { font-family: var(--display); font-size: clamp(19px, 2.6vw, 24px); line-height: 1.55; font-style: italic; margin: 18px 0 0; min-height: 5.5em; }
 
 @media (max-width: 900px) {

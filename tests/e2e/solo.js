@@ -40,7 +40,7 @@ const ok = (c, m) => { if (!c) throw new Error('FAIL: ' + m); console.log('ok -'
       await pg.click('.sheet-x');
       // narration next
       await pg.click('[aria-label="Next line"]');
-      ok((await pg.textContent('.nar-id')) === 'B-02', 'narration advances');
+      ok((await pg.textContent('.nar-id')) === 'I-02', 'narration advances');
     }
     await pg.click('.checkpoint-strip >> text=Answer');
     await pg.click(`.choice >> text=${answers[i]}`);

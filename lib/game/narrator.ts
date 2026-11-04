@@ -4,6 +4,8 @@
  * Plays narration lines. Uses the recorded file /cases/<id>/narration/<LINE-ID>.mp3 when it exists,
  * otherwise falls back to the device's voice so the case stays playable before recordings land.
  */
+import { duckMusic } from "./sound";
+
 let current: HTMLAudioElement | null = null;
 const missing = new Set<string>();
 
@@ -12,6 +14,7 @@ function stop() {
     current?.pause();
   } catch {}
   current = null;
+  duckMusic(false);
   try {
     window.speechSynthesis?.cancel();
   } catch {}
@@ -36,6 +39,8 @@ export function speakLine(caseId: string, id: string, text: string) {
   if (missing.has(src)) return tts(text);
   const a = new Audio(src);
   current = a;
+  a.onplay = () => current === a && duckMusic(true);
+  a.onended = () => current === a && duckMusic(false);
   a.onerror = () => {
     missing.add(src);
     if (current === a) tts(text);
@@ -46,3 +51,13 @@ export function speakLine(caseId: string, id: string, text: string) {
 }
 
 export const stopNarration = stop;
+
+/** true while a recorded line or the device voice is speaking */
+export function isSpeaking() {
+  try {
+    if (current && !current.paused && !current.ended) return true;
+    return !!window.speechSynthesis?.speaking;
+  } catch {
+    return false;
+  }
+}

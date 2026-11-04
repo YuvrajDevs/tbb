@@ -204,6 +204,9 @@ export const hollowPines: CaseFile = {
   ],
   narration: {
     briefing: [
+      { id: "I-01", text: "This is the Blackwood Bureau. You have been handed Case Number zero one seven: The Silence at Hollow Pines." },
+      { id: "I-02", text: "A wealthy man is dead in his study, and everyone around him agrees it was his heart. The local police are not so sure. That is why the file is on your desk." },
+      { id: "I-03", text: "Listen to the briefing. Then read every exhibit, test every statement, and trust nothing that you cannot prove." },
       { id: "B-01", text: "Mussoorie. Sunday, the eleventh of October. The mist has not lifted from Camel's Back Road, and at Hollow Pines the curtains of the study are still drawn." },
       { id: "B-02", text: "At ten past seven, the housekeeper found Vikram Singh Rathore in his armchair, cold, his reading glasses in his lap." },
       { id: "B-03", text: "His doctor of twenty years called it his heart. The inspector called the Bureau." },
@@ -250,6 +253,52 @@ export const hollowPines: CaseFile = {
       { id: "V-11", text: "Arjun hid a bar tab. Kabir feared a Monday that was never about him. Vikram wrote 'Thirty years' beside the name of the man he suspected. He never suspected the woman who filled his pill box every Sunday." },
       { id: "V-12", text: "Case No. 017 is closed." },
     ],
+    hints: {
+      1: [
+        { id: "H-1-1", text: "Here's a thought. Dr. Kapoor's estimate is just his opinion. Is there anything in that room that actually recorded the night as it happened?" },
+        { id: "H-1-2", text: "Okay, try this. Go through the smartwatch export line by line. Then ask yourself what the police found switched on in the study." },
+        { id: "H-1-3", text: "Alright, here it is. The watch loses his pulse at twenty-one forty-eight, so he died at about a quarter to ten. Those voices at ten fifteen came from someone, or something, else." },
+      ],
+      2: [
+        { id: "H-2-1", text: "Little nudge. Everyone's telling you when they arrived and when they left. Check each of them against something that keeps time." },
+        { id: "H-2-2", text: "Put Dr. Kapoor's statement right next to the gate camera register. Go on." },
+        { id: "H-2-3", text: "Fine, I'll say it. Dr. Kapoor says he left at nine forty. The camera says twenty-one fifty-eight. His is the account the camera contradicts." },
+      ],
+      3: [
+        { id: "H-3-1", text: "Think about it. A weekly vitamin shot goes into the muscle. So, count the marks on the body." },
+        { id: "H-3-2", text: "Read the external findings in the post-mortem. Then the fireplace evidence tag, and the dispensary register, all together." },
+        { id: "H-3-3", text: "Here's the answer. A puncture in the vein, high potassium, and a potassium chloride ampoule in the grate. He was injected with potassium chloride." },
+      ],
+      4: [
+        { id: "H-4-1", text: "Funny thing. Three people were dreading Monday, for three different reasons. Only one document says what Monday was actually about." },
+        { id: "H-4-2", text: "That letter Meera hid? It's not about the will. Read it alongside the bank statement Vikram marked up." },
+        { id: "H-4-3", text: "Okay. Monday, eleven in the morning, with Advocate Mehta. About one crore, eighty-four lakh rupees the Trust paid to Kapoor Diagnostics." },
+      ],
+      5: [
+        { id: "H-5-1", text: "The gate camera's been right about everything so far. Hasn't it? Hmm. Has it?" },
+        { id: "H-5-2", text: "Compare the camera's time for the police jeep with the inquest report. Then its time for Dr. Kapoor's morning arrival, with the time on his note." },
+        { id: "H-5-3", text: "Here you go. The recorder runs eighteen minutes fast. Take eighteen minutes off twenty-one fifty-eight." },
+      ],
+    },
+    nudges: {
+      noFile: [
+        { id: "N-01", text: "Go on, open a file. They don't bite. Well, most of them don't." },
+      ],
+      unread: [
+        { id: "N-02", text: "There's still a file in this folder you haven't looked at. Just saying." },
+      ],
+      answer: [
+        { id: "N-03", text: "You've seen everything in this folder. Whenever you're ready, take a crack at the question." },
+      ],
+      stuck: [
+        { id: "N-04", text: "Still with me? If you're stuck, there's no shame in a hint. I won't tell anyone." },
+        { id: "N-05", text: "Take your time. Put two statements side by side, and see which one blinks first." },
+        { id: "N-06", text: "Try writing the times down in your notebook. Times are where people slip up." },
+      ],
+      accuse: [
+        { id: "N-07", text: "That's the whole file. When you're ready, make your accusation. Who, how, and why." },
+      ],
+    },
   },
   accusation: {
     methods: [

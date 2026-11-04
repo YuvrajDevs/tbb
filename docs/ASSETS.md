@@ -49,6 +49,18 @@ Voicemail script (timings approximate):
 One MP3 per line, named by the line ID. The narrator is a calm, low game-master voice: it states
 what happened, never what it means. Missing files fall back to the device's voice.
 
+Generated in VoiceStudio (OmniVoice engine), voice design `male, middle-aged, very low pitch, american accent`,
+speed 0.88, seed 7, broadcast effect; silence trimmed, MP3 96 kbps mono. Numbers such as 9:40 are spelled out
+for the voice. All 56 files are in place.
+
+**Introduction** (the narrator explains the case before the briefing)
+
+| File | Line |
+| --- | --- |
+| `I-01.mp3` | This is the Blackwood Bureau. You have been handed Case Number zero one seven: The Silence at Hollow Pines. |
+| `I-02.mp3` | A wealthy man is dead in his study, and everyone around him agrees it was his heart. The local police are not so sure. That is why the file is on your desk. |
+| `I-03.mp3` | Listen to the briefing. Then read every exhibit, test every statement, and trust nothing that you cannot prove. |
+
 **Briefing**
 
 | File | Line |
@@ -114,3 +126,20 @@ what happened, never what it means. Missing files fall back to the device's voic
 | `V-10.mp3` | In the morning Anand wrote 'one o'clock' and 'cardiac', and begged the family to be spared a post-mortem. On Wednesday he confessed to fraud rather than let you look at his sister. |
 | `V-11.mp3` | Arjun hid a bar tab. Kabir feared a Monday that was never about him. Vikram wrote 'Thirty years' beside the name of the man he suspected. He never suspected the woman who filled his pill box every Sunday. |
 | `V-12.mp3` | Case No. 017 is closed. |
+
+**Hints and nudges** (casual tone, speed 0.96)
+
+Each revealed hint is read in a casual voice: `H-<round>-<1..3>.mp3`, 15 files; the spoken words are in
+`narration.hints` in `lib/cases/hollow-pines.ts` (the screen keeps the original hint text). After about
+2½ minutes with no touch, key or scroll, the narrator says one nudge that fits the moment and shows it
+as a toast: `N-01` no file opened yet, `N-02` a file still unread, `N-03` folder read but question
+unanswered, `N-04`–`N-06` general (rotate), `N-07` every checkpoint done, time to accuse. Nudges need
+the narrator voice on and stay quiet during the accusation and reveal.
+
+## Music and sound effects — `public/audio/`
+
+| File | Use |
+| --- | --- |
+| `music-suspense.mp3` | Background loop on the case desk, 30% by default, adjustable in Settings; softens while the narrator speaks. Pixabay, "Suspense" by leberch. |
+| `sfx-page.mp3` | Page turn when a file opens. Pixabay, "Turn a page" by creatorshome. |
+| `sfx-click.mp3` | Click when a folder opens. Pixabay, "Computer mouse click" by universfield. |

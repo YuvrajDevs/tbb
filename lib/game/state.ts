@@ -59,7 +59,7 @@ export interface Private {
   chatReadAt?: number;
 }
 
-export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: false });
+export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: true });
 
 export const MAX_PLAYERS = 6;
 

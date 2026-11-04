@@ -2,14 +2,24 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CaseFile, EvidenceFile, Round } from "@/lib/types";
+import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
-import { speakLine, stopNarration } from "@/lib/game/narrator";
+import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
+import { playClick, playPageTurn, setSound, startMusic, stopMusic, useSound } from "@/lib/game/sound";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
-type Panel = null | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+/** quiet time before the narrator nudges; `localStorage["blackwood:idleMs"]` overrides it for testing */
+const IDLE_MS = (() => {
+  try {
+    return Number(window.localStorage.getItem("blackwood:idleMs")) || 150_000;
+  } catch {
+    return 150_000;
+  }
+})();
+
+type Panel = null |"notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -27,6 +37,8 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
     window.scrollTo(0, 0);
+    startMusic();
+    return () => stopMusic();
   }, []);
 
   const current = c.rounds.find((r) => r.number === s.unlocked)!;
@@ -42,6 +54,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   };
 
   const view = (f: EvidenceFile) => {
+    if (f.id !== fileId) playPageTurn();
     setFileId(f.id);
     setZoom(1);
     setPanel(null);
@@ -139,10 +152,61 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     spoken.current = line.id;
     speakLine(c.id, line.id, line.text);
   }, [priv.voice, line, c.id]);
-  useEffect(() => () => stopNarration(), []);
+  useEffect(
+    () => () => {
+      stopNarration();
+      spoken.current = ""; // so a remount (or returning to the desk) reads the current line again
+    },
+    []
+  );
   useEffect(() => {
     setNarOpen(false);
   }, [line?.id]);
+
+  /* ---------- nudges after a quiet spell ---------- */
+  // Any touch, key or scroll counts as activity. After IDLE_MS with nothing happening, the narrator
+  // says one casual line that fits the situation; it waits another IDLE_MS before the next one.
+  const lastActive = useRef(Date.now());
+  const nudged = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const mark = () => (lastActive.current = Date.now());
+    const evs = ["pointerdown", "keydown", "wheel", "touchmove"] as const;
+    evs.forEach((e) => window.addEventListener(e, mark, { passive: true }));
+    return () => evs.forEach((e) => window.removeEventListener(e, mark));
+  }, []);
+  useEffect(() => {
+    lastActive.current = Date.now();
+  }, [s.unlocked, s.narration.line, s.narration.script, fileId, panel]);
+  const nudgeRef = useRef<() => void>(() => {});
+  nudgeRef.current = () => {
+    if (!priv.voice || s.phase !== "play" || s.finishedAt || panel === "reveal" || panel === "accuse") return;
+    if (Date.now() - lastActive.current < IDLE_MS || isSpeaking()) return;
+    const files = current.files.filter(canOpen);
+    const kind: NudgeKind = solvedAll
+      ? "accuse"
+      : !files.some((f) => priv.viewed.includes(f.id))
+        ? "noFile"
+        : files.some((f) => !priv.viewed.includes(f.id))
+          ? "unread"
+          : s.solved[current.number]
+            ? "stuck"
+            : "answer";
+    const key = `${s.unlocked}:${kind}`;
+    const pool = c.narration.nudges[kind];
+    const said = nudged.current[key] ?? 0;
+    // situation lines once per round each; after that, rotate the general ones
+    const pickFrom = said > 0 && kind !== "stuck" ? c.narration.nudges.stuck : pool;
+    const line = pickFrom[(nudged.current.total ?? 0) % pickFrom.length];
+    nudged.current[key] = said + 1;
+    nudged.current.total = (nudged.current.total ?? 0) + 1;
+    lastActive.current = Date.now();
+    speakLine(c.id, line.id, line.text);
+    toast(line.text);
+  };
+  useEffect(() => {
+    const t = window.setInterval(() => nudgeRef.current(), 5000);
+    return () => window.clearInterval(t);
+  }, []);
 
   const folderState = (r: Round): FolderState => {
     if (r.number > s.unlocked) return "locked";
@@ -230,6 +294,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   className={`folder ${folder === r.number ? "sel" : ""}`}
                   onClick={() => {
                     if (st === "locked") return;
+                    if (folder !== r.number) playClick();
                     setPicked({ round: r.number, at: s.unlocked });
                     setFileId(null);
                   }}
@@ -428,8 +493,11 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 used={priv.hintsUsed[current.number] ?? 0}
                 onUse={() => {
                   if ((priv.hintsUsed[current.number] ?? 0) >= 3) return;
+                  const n = priv.hintsUsed[current.number] ?? 0;
                   setPriv((x) => ({ ...x, hintsUsed: { ...x.hintsUsed, [current.number]: (x.hintsUsed[current.number] ?? 0) + 1 } }));
                   g.act({ t: "hint" });
+                  const spokenHint = c.narration.hints[current.number]?.[n];
+                  if (priv.voice && spokenHint) speakLine(c.id, spokenHint.id, spokenHint.text);
                 }}
               />
             )}
@@ -653,6 +721,7 @@ function NotebookPanel({ g }: { g: Game }) {
 
 function SettingsPanel({ g }: { g: Game }) {
   const { s, priv, setPriv } = g;
+  const sound = useSound();
   return (
     <div>
       <div className="eyebrow">Settings</div>
@@ -667,6 +736,16 @@ function SettingsPanel({ g }: { g: Game }) {
       <label className="toggle">
         <input type="checkbox" checked={priv.voice} onChange={() => { if (priv.voice) stopNarration(); setPriv((x) => ({ ...x, voice: !x.voice })); }} />
         <span><b>Narrator voice{g.party ? " on this device" : ""}.</b> Reads each line aloud. Captions always show.</span>
+      </label>
+      <label className="toggle range">
+        <span>
+          <b>Background music{g.party ? " on this device" : ""}.</b> {Math.round(sound.music * 100)}%{sound.music === 0 ? " (off)" : ""}. It softens while the narrator speaks.
+          <input type="range" min={0} max={100} step={5} value={Math.round(sound.music * 100)} onChange={(e) => setSound({ music: Number(e.target.value) / 100 })} aria-label="Background music volume" />
+        </span>
+      </label>
+      <label className="toggle">
+        <input type="checkbox" checked={sound.sfx} onChange={() => setSound({ sfx: !sound.sfx })} />
+        <span><b>Sound effects.</b> A page turn when you open a file, a click when you open a folder.</span>
       </label>
     </div>
   );

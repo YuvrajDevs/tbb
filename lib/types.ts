@@ -36,6 +36,9 @@ export interface NarrationLine {
   text: string;
 }
 
+/** what the player has (not) done when a quiet spell triggers a nudge */
+export type NudgeKind = "noFile" | "unread" | "answer" | "stuck" | "accuse";
+
 export interface Suspect {
   id: string;
   name: string;
@@ -64,6 +67,10 @@ export interface CaseFile {
     rounds: Record<number, NarrationLine[]>;
     accusation: NarrationLine[];
     reveal: NarrationLine[];
+    /** casual spoken versions of each round's three hints (id H-<round>-<n>), read when a hint is revealed */
+    hints: Record<number, NarrationLine[]>;
+    /** casual nudges spoken after a quiet spell, chosen by situation */
+    nudges: Record<NudgeKind, NarrationLine[]>;
   };
   accusation: {
     methods: Choice[];
