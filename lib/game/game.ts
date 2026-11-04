@@ -111,6 +111,7 @@ const HB_MS = 2500;
 const AWAY_MS = 9000;
 const BYE_GRACE_MS = 4000;
 const TAKEOVER_MS = 3000;
+const TAKEOVER_V_JUMP = 1000;
 const RETRY_MS = 1500;
 
 export const roomIdKey = (code: string) => `blackwood:room:${code}:id`;
@@ -381,7 +382,9 @@ export function useRoomGame(c: CaseFile, code: string, name: string | null): { g
       // anything I had queued as a player, I now apply myself
       const mine = queue.current;
       queue.current = [];
-      let next: Shared = { ...cur, v: cur.v + 1, hostId: me, roundStartedAt, startedAt: cur.startedAt ? cur.startedAt - k : cur.startedAt };
+      // Jump the version well ahead: the old host may not know it dropped and can keep making changes
+      // offline (e.g. narration playing on). Those must never outrank the new host when it reconnects.
+      let next: Shared = { ...cur, v: cur.v + TAKEOVER_V_JUMP, hostId: me, roundStartedAt, startedAt: cur.startedAt ? cur.startedAt - k : cur.startedAt };
       for (const q of mine) next = reduce(c, next, q.action, me, { now: Date.now(), online });
       adopt(next, true);
     }, 1000);

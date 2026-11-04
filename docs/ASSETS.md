@@ -49,9 +49,11 @@ Voicemail script (timings approximate):
 One MP3 per line, named by the line ID. The narrator is a calm, low game-master voice: it states
 what happened, never what it means. Missing files fall back to the device's voice.
 
-Generated in VoiceStudio (OmniVoice engine), voice design `male, middle-aged, very low pitch, american accent`,
-speed 0.88, seed 7, broadcast effect; silence trimmed, MP3 96 kbps mono. Numbers such as 9:40 are spelled out
-for the voice. All 56 files are in place.
+One voice for every line. `B-03.mp3` was made in VoiceStudio (OmniVoice engine) with the voice design
+`male, middle-aged, very low pitch, american accent`, speed 0.88, seed 7, broadcast effect. Every other line
+is cloned from that recording (reference audio `B-03`, its text as reference text, speed 0.88, seed 7), so
+they all share the exact same voice. Silence trimmed, MP3 96 kbps mono. Numbers such as 9:40 are spelled out
+for the voice. All 90 files are in place.
 
 **Introduction** (the narrator explains the case before the briefing)
 
@@ -127,7 +129,7 @@ for the voice. All 56 files are in place.
 | `V-11.mp3` | Arjun hid a bar tab. Kabir feared a Monday that was never about him. Vikram wrote 'Thirty years' beside the name of the man he suspected. He never suspected the woman who filled his pill box every Sunday. |
 | `V-12.mp3` | Case No. 017 is closed. |
 
-**Hints and nudges** (casual tone, speed 0.96)
+**Hints and nudges** (casual wording, same voice)
 
 Each revealed hint is read in a casual voice: `H-<round>-<1..3>.mp3`, 15 files; the spoken words are in
 `narration.hints` in `lib/cases/hollow-pines.ts` (the screen keeps the original hint text). After about
@@ -135,6 +137,12 @@ Each revealed hint is read in a casual voice: `H-<round>-<1..3>.mp3`, 15 files; 
 as a toast: `N-01` no file opened yet, `N-02` a file still unread, `N-03` folder read but question
 unanswered, `N-04`–`N-06` general (rotate), `N-07` every checkpoint done, time to accuse. Nudges need
 the narrator voice on and stay quiet during the accusation and reveal.
+
+**Exhibit briefs** (`E-01.mp3` … `E-34.mp3`, same voice)
+
+Each exhibit has a **Brief** button in the file viewer. The narrator sums up what the document says,
+never what it means, and the words show as a caption while it plays. The text is in `narration.briefs`
+in `lib/cases/hollow-pines.ts`.
 
 ## Music and sound effects — `public/audio/`
 

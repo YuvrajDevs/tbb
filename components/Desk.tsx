@@ -46,6 +46,15 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const name = useCallback((id: string) => (id === g.me ? "You" : s.players[id]?.name ?? "A player"), [g.me, s.players]);
   const allFiles = useMemo(() => c.rounds.flatMap((r) => r.files), [c]);
   const openFile = allFiles.find((f) => f.id === fileId) ?? null;
+  const brief = openFile ? c.narration.briefs.find((b) => b.id === `E-${String(openFile.exhibit).padStart(2, "0")}`) : undefined;
+  // which file's brief is playing; closing or switching the file stops it
+  const [briefFor, setBriefFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (briefFor && briefFor !== fileId) {
+      stopNarration();
+      setBriefFor(null);
+    }
+  }, [fileId, briefFor]);
 
   const holder = (f: EvidenceFile) => (g.party ? holderOf(c, s, f.id, g.online) : null);
   const canOpen = (f: EvidenceFile) => {
@@ -146,12 +155,28 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const lines = scriptLines(c, s.narration.script);
   const line = lines[Math.min(s.narration.line, lines.length - 1)];
   const spoken = useRef<string>("");
+  // Continuous play: when a line finishes, the next one starts on its own (host or solo moves the
+  // narration for everyone). Stops at the end of each script, e.g. at "Open folder one."
+  const [auto, setAuto] = useState(true);
+  const lineEnded = useRef<() => void>(() => {});
+  lineEnded.current = () => {
+    // only a connected host moves the room on; a dropped host must not keep changing the state
+    if (!auto || !g.isHost || (g.party && (!g.connected || g.pausedAt))) return;
+    const reveal = s.narration.script === "reveal";
+    const at = reveal ? s.revealStep : s.narration.line;
+    if (at >= lines.length - 1) return;
+    window.setTimeout(() => g.act(reveal ? { t: "reveal", d: 1 } : { t: "line", d: 1 }), 700);
+  };
+  const speak = useCallback(
+    (l: { id: string; text: string }) => speakLine(c.id, l.id, l.text, () => lineEnded.current()),
+    [c.id]
+  );
   useEffect(() => {
     if (!priv.voice || !line) return;
     if (spoken.current === line.id) return;
     spoken.current = line.id;
-    speakLine(c.id, line.id, line.text);
-  }, [priv.voice, line, c.id]);
+    speak(line);
+  }, [priv.voice, line, speak]);
   useEffect(
     () => () => {
       stopNarration();
@@ -408,15 +433,39 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                       {Glyph.point}
                     </button>
                   )}
+                  {brief && canOpen(openFile) && (
+                    <button
+                      className={`btn sm ${briefFor === openFile.id ? "" : "ghost"}`}
+                      onClick={() => {
+                        if (briefFor === openFile.id) {
+                          stopNarration();
+                          setBriefFor(null);
+                          return;
+                        }
+                        const id = openFile.id;
+                        setBriefFor(id);
+                        speakLine(c.id, brief.id, brief.text, () => setBriefFor((b) => (b === id ? null : b)));
+                      }}
+                      aria-label={briefFor === openFile.id ? "Stop the brief" : "Hear a brief of this exhibit"}
+                      title="The narrator sums up what this exhibit says"
+                    >
+                      {briefFor === openFile.id ? Glyph.pause : Glyph.voiceOn}
+                      <span className="hide-xs" style={{ marginLeft: 6 }}>{briefFor === openFile.id ? "Stop" : "Brief"}</span>
+                    </button>
+                  )}
                   <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.max(0.6, +(z - 0.15).toFixed(2)))} aria-label="Zoom out">{Glyph.zoomOut}</button>
                   <button className="iconbtn hide-xs" onClick={() => setZoom((z) => Math.min(2.2, +(z + 0.15).toFixed(2)))} aria-label="Zoom in">{Glyph.zoomIn}</button>
                 </div>
               </div>
-              <div className="viewer-scroll">
-                <div style={{ zoom } as React.CSSProperties}>
-                  {canOpen(openFile) ? <Evidence file={openFile} /> : <p className="muted-dark">This file is now held by another player.</p>}
+              {brief && briefFor === openFile.id && (
+                <div className="brief-cap" role="status">
+                  <span className="eyebrow">Brief · Exhibit {openFile.exhibit}</span>
+                  <p>{brief.text}</p>
                 </div>
-              </div>
+              )}
+              <ZoomBox zoom={zoom}>
+                {canOpen(openFile) ? <Evidence file={openFile} /> : <p className="muted-dark">This file is now held by another player.</p>}
+              </ZoomBox>
             </div>
           ) : (
             <div className="empty">
@@ -444,7 +493,27 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {g.isHost && (
                 <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
               )}
-              <button className="iconbtn" onClick={() => speakLine(c.id, line.id, line.text)} aria-label="Replay this line on this device">{Glyph.replay}</button>
+              <button className="iconbtn" onClick={() => speak(line)} aria-label="Replay this line on this device">{Glyph.replay}</button>
+              <button
+                className={`iconbtn ${auto && priv.voice ? "on" : ""}`}
+                onClick={() => {
+                  if (auto && priv.voice) {
+                    setAuto(false);
+                    stopNarration();
+                    return;
+                  }
+                  setAuto(true);
+                  if (!priv.voice) {
+                    spoken.current = line.id; // the voice effect would read it too; read it once here
+                    setPriv((x) => ({ ...x, voice: true }));
+                  }
+                  speak(line);
+                }}
+                aria-label={auto && priv.voice ? "Stop continuous narration" : "Play the narration continuously"}
+                title={auto && priv.voice ? "Stop" : "Play continuously"}
+              >
+                {auto && priv.voice ? Glyph.pause : Glyph.play}
+              </button>
               <button
                 className={`iconbtn ${priv.voice ? "on" : ""}`}
                 onClick={() => {
@@ -662,6 +731,41 @@ function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Magnifies a document like a loupe: the document is laid out once at 100% for the panel's width and
+ * then scaled as a whole, so zooming never re-wraps text or reshapes the page. Scrolls both ways.
+ */
+function ZoomBox({ zoom, children }: { zoom: number; children: React.ReactNode }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const inner = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const sc = scroller.current, el = inner.current;
+    if (!sc || !el) return;
+    const measure = () => {
+      const cs = getComputedStyle(sc);
+      const w = sc.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      if (w <= 0) return; // hidden or not laid out yet; keep the last good measurement
+      setBox((b) => (b && b.w === w && b.h === el.offsetHeight ? b : { w, h: el.offsetHeight }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(sc);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const w = box?.w ?? 0;
+  return (
+    <div className="viewer-scroll" ref={scroller}>
+      <div className="zoom-outer" style={box ? { width: w * zoom, height: box.h * zoom } : undefined}>
+        <div ref={inner} className="zoom-inner" style={box ? { width: w, transform: `scale(${zoom})` } : undefined}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

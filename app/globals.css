@@ -215,6 +215,11 @@ button { font-family: inherit; }
 .viewer-title { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14.5px; color: var(--text-2); }
 .viewer-title span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .viewer-scroll { flex: 1; overflow: auto; padding: 34px 26px 60px; }
+.zoom-outer { margin: 0 auto; }
+.brief-cap { padding: 10px 16px 12px; border-bottom: 1px solid var(--line); background: var(--desk); max-height: 30vh; overflow: auto; }
+.brief-cap p { margin: 4px 0 0; font-family: var(--display); font-style: italic; font-size: 15px; line-height: 1.55; color: var(--text-2); }
+.viewer-bar .btn.sm { display: inline-flex; align-items: center; }
+.zoom-inner { transform-origin: 0 0; }
 .empty { height: calc(100vh - 200px); min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed var(--line); }
 
 .narration {
