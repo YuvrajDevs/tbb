@@ -251,7 +251,7 @@ export function CallLog() {
     ["10-10-2026", "11:30", "Incoming", "Kabir Sethi", "+91 98970 21460", "00:48"],
     ["10-10-2026", "16:47", "Outgoing", "Anand (Dr.)", "+91 94120 51187", "01:05"],
     ["10-10-2026", "22:05", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed"],
-    ["10-10-2026", "22:11", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed · voicemail 00:18"],
+    ["10-10-2026", "22:11", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed · voicemail 00:17"],
     ["11-10-2026", "06:58", "Incoming", "(not saved)", "+91 70172 30995", "Missed"]
   ];
   return (
