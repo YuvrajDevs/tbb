@@ -31,7 +31,7 @@ export function Kit({ c }: { c: CaseFile }) {
         <hr className="double" />
         <div className="serif" style={{ fontWeight: 700 }}>Set up in ten minutes</div>
         <ol>
-          <li>Print this kit. Cut out the four envelope labels and stick one on each envelope.</li>
+          <li>Print this kit. Cut out the {c.rounds.length} envelope labels and stick one on each envelope.</li>
           {c.rounds.map((r) => (
             <li key={r.number}>
               <b>{r.envelope}</b> — {r.title}: Exhibits {r.files[0].exhibit}–{r.files[r.files.length - 1].exhibit}. {r.files.some((f) => f.type === "audio") && "(The voicemail page has a transcript; play it in the app if you like.)"}
@@ -43,7 +43,7 @@ export function Kit({ c }: { c: CaseFile }) {
         <div className="serif" style={{ fontWeight: 700 }}>How a round works</div>
         <p>The narrator reads a short scene and tells you to open the next envelope. Spread its pages on the table and investigate together. When the group agrees, answer the checkpoint in the app. A right answer opens the next round. A wrong one simply says &ldquo;Look again&rdquo;. After three wrong tries you may skip.</p>
         <p>Hints are in the app, three per round, from a nudge to the round&apos;s answer. They never name the killer.</p>
-        <p>After envelope four, the group makes one accusation: who, how and why. Then the narrator plays the reveal.</p>
+        <p>After the last envelope, the group makes one accusation: who, how and why. Then the narrator plays the reveal.</p>
       </Sheet>
 
       {/* envelope labels */}

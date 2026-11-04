@@ -1,20 +1,32 @@
 import type { CaseFile, ShelfEntry } from "../types";
 
+/*
+ * CASE 017 — THE SILENCE AT HOLLOW PINES
+ * Writer's bible (do not ship to players):
+ *  - Killer: Meera Rathore, born Nisha Meera Kapoor, former ICU sister, younger sister of Dr. Anand Kapoor.
+ *  - Anand and Meera ran a ₹1.84 crore fraud on the Rathore Trust through a sham lab, Kapoor Diagnostics LLP.
+ *  - Vikram found it and booked his lawyer for Monday. Meera opened the lawyer's letter and resealed it.
+ *  - Anand drew the potassium chloride and handed Meera a filled syringe in the hall at ~21:00.
+ *  - Anand left at 21:40 (truth). The gate camera runs 18 min fast (set from the hut clock), so it shows 21:58.
+ *  - Meera told Vikram Anand wanted a blood sample, injected KCl at ~21:42; he fell 21:44; she cancelled SOS.
+ *  - 22:14 she phoned Anand from the study (Sunita's "voices"), then staged the chair and burned the ampoule.
+ *  - Red herrings: Arjun (lies about the bar), Kabir (threatening email), Meera's "will" story, Anand's "lie".
+ */
 export const hollowPines: CaseFile = {
   id: "017",
   number: "017",
   title: "The Silence at Hollow Pines",
-  subtitle: "A death in the study, a doctor at the door, and a watch that kept the time.",
+  subtitle: "A death in the study, a doctor at the door, and a clock that nobody checked.",
   genre: "Classic murder",
   players: "1 to 6",
   playTime: "About 2 hours",
-  price: "Free demo",
+  price: "Free",
   dateOpened: "11 October 2026",
   location: "Hollow Pines Estate, Camel's Back Road, Mussoorie, Uttarakhand",
   summary:
-    "Vikram Singh Rathore, sixty-four, retired tea exporter and chairman of the Rathore Charitable Trust, was found dead in the armchair of his study on a cold Sunday morning. His family doctor called it his heart. The police are not so sure. Four people had reason to be near him that night. One of them made certain he would not live to see Monday.",
+    "Vikram Singh Rathore, sixty-four, retired tea exporter and chairman of the Rathore Charitable Trust, was found dead in the armchair of his study on a cold Sunday morning. His family doctor called it his heart. The police are not so sure. Five people had reason to be near him that night. One of them made certain he would not live to see Monday.",
   suspects: [
-    { id: "meera", name: "Meera Rathore", role: "Wife", age: 46, note: "Married to Vikram for eleven years. Inherits the estate." },
+    { id: "meera", name: "Meera Rathore", role: "Wife", age: 46, note: "Married to Vikram for eleven years. Was upstairs all night, she says." },
     { id: "arjun", name: "Arjun Rathore", role: "Son", age: 31, note: "From Vikram's first marriage. Owes money on a failed café." },
     { id: "kapoor", name: "Dr. Anand Kapoor", role: "Family physician", age: 59, note: "Treated Vikram for twenty years. Trustee of the Rathore Trust." },
     { id: "kabir", name: "Kabir Sethi", role: "Business partner", age: 48, note: "Developer. Wants the lower estate land for a resort." },
@@ -45,31 +57,31 @@ export const hollowPines: CaseFile = {
         ],
         answer: "b",
         explanation:
-          "The watch registers a hard fall at 21:43 and loses his pulse by 21:47. The voices Sunita heard at 10:15 came from the radio, found still switched on.",
+          "His watch registers a hard fall at 21:44 and loses his pulse at 21:48, while still strapped to his wrist. Rigor was already full at 08:15. Whatever Sunita heard at a quarter past ten, it was not Vikram.",
       },
       hints: [
         "Dr. Kapoor's estimate is an opinion. Look for something in the room that recorded the night as it happened.",
-        "Read the smartwatch export line by line, and compare it with what the police found switched on in the study.",
-        "The watch loses his pulse at 21:47. Sunita's 'voices' at 10:15 were the radio. He died at about 9:45 PM.",
+        "Read the smartwatch export line by line. Then ask what the police found switched on in the study.",
+        "The watch loses his pulse at 21:48. He died at about 9:45 PM. The 'voices' at 10:15 came from someone or something else.",
       ],
     },
     {
       number: 2,
       title: "The Household",
       envelope: "Envelope 2",
-      minutes: 30,
+      minutes: 25,
       files: [
         { id: "r2-meera", exhibit: 8, name: "Statement — Meera Rathore.pdf", type: "statement", date: "11 Oct 2026" },
         { id: "r2-arjun", exhibit: 9, name: "Statement — Arjun Rathore.pdf", type: "statement", date: "11 Oct 2026" },
         { id: "r2-kapoor", exhibit: 10, name: "Statement — Dr. Anand Kapoor.pdf", type: "statement", date: "11 Oct 2026" },
         { id: "r2-kabir", exhibit: 11, name: "Statement — Kabir Sethi.pdf", type: "statement", date: "11 Oct 2026" },
         { id: "r2-cctvlog", exhibit: 12, name: "Main gate CCTV register.csv", type: "record", date: "10 Oct 2026" },
-        { id: "r2-cctvstill", exhibit: 13, name: "CCTV still — Gate cam 1, 21.58.jpg", type: "photo", date: "10 Oct 2026" },
+        { id: "r2-cctvstill", exhibit: 13, name: "CCTV still — Gate cam 1.jpg", type: "photo", date: "10 Oct 2026" },
         { id: "r2-chat", exhibit: 14, name: "Chat printout — Arjun and Vikram.pdf", type: "chat", date: "10 Oct 2026" },
         { id: "r2-calls", exhibit: 15, name: "Call log — Vikram's mobile.pdf", type: "record", date: "10 Oct 2026" },
       ],
       checkpoint: {
-        question: "Who was the last person known to be with Vikram while he was alive?",
+        question: "Whose account of the evening does the main gate camera contradict?",
         choices: [
           { id: "meera", label: "Meera Rathore" },
           { id: "arjun", label: "Arjun Rathore" },
@@ -79,22 +91,22 @@ export const hollowPines: CaseFile = {
         ],
         answer: "kapoor",
         explanation:
-          "Dr. Kapoor says he left at 9:40. The gate camera shows his car leaving at 21:58, eleven minutes after Vikram's pulse stopped.",
+          "Dr. Kapoor says he let himself out at about 9:40. The camera has his car leaving at 21:58, ten minutes after Vikram's pulse stopped. One of them is wrong.",
       },
       hints: [
-        "Everyone tells you when they last saw Vikram. Not everyone is telling the truth. Check their times against something that cannot lie.",
+        "Everyone tells you when they arrived and when they left. Check each of them against something that keeps time.",
         "Put Dr. Kapoor's statement next to the main gate CCTV register.",
-        "Dr. Kapoor claims he left at 9:40 PM. His car leaves the gate at 21:58. He was there when Vikram died.",
+        "Dr. Kapoor says 9:40 PM. The camera says his car left at 21:58. It is his account the camera contradicts.",
       ],
     },
     {
       number: 3,
       title: "What the Body Said",
       envelope: "Envelope 3",
-      minutes: 30,
+      minutes: 25,
       files: [
         { id: "r3-pm", exhibit: 16, name: "Post-mortem report.pdf", type: "document", date: "12 Oct 2026" },
-        { id: "r3-tag", exhibit: 17, name: "Evidence tag — fireplace fragment.jpg", type: "photo", date: "11 Oct 2026" },
+        { id: "r3-tag", exhibit: 17, name: "Evidence tag — fireplace fragment.jpg", type: "photo", date: "12 Oct 2026" },
         { id: "r3-pharmacy", exhibit: 18, name: "Hospital dispensary register.pdf", type: "record", date: "09 Oct 2026" },
         { id: "r3-receipt", exhibit: 19, name: "Receipt — Clocktower Bar.jpg", type: "record", date: "10 Oct 2026" },
         {
@@ -104,7 +116,7 @@ export const hollowPines: CaseFile = {
           type: "audio",
           date: "10 Oct 2026",
           transcript:
-            "Vikram, it's Kabir. Again. Look, I know you're angry about the email. I shouldn't have written it like that. But pick up, yaar. We need to talk before Monday. Before you say anything to anyone. Call me back. Tonight, please. ... I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me.",
+            "Vikram, it's Kabir. Again. Look, I know you're angry about the email. I shouldn't have written it like that. But pick up, yaar. We need to talk before Monday. Before you say anything to anyone. Call me back. Tonight, please. I'm at Pinky's sangeet, it's mad here, but I'll step out. Call me.",
         },
         { id: "r3-diary", exhibit: 21, name: "Diary page — Vikram Rathore.jpg", type: "document", date: "Oct 2026" },
       ],
@@ -118,19 +130,19 @@ export const hollowPines: CaseFile = {
         ],
         answer: "c",
         explanation:
-          "The post-mortem finds a fresh puncture in a vein of the left elbow and raised potassium. A broken ampoule of potassium chloride lay in the fireplace, and Dr. Kapoor drew two such ampoules from the hospital the day before.",
+          "A fresh puncture in the vein at the left elbow, raised potassium at that site, a burnt ampoule of potassium chloride in the grate, and two such ampoules drawn from the hospital on Friday.",
       },
       hints: [
         "A weekly vitamin shot goes into the muscle. Count the marks on the body.",
         "Read the post-mortem's external findings, then the fireplace evidence tag and the dispensary register together.",
-        "A vein puncture, high potassium, a potassium chloride ampoule in the grate, and two drawn by Dr. Kapoor on 9 October. He was injected with potassium chloride.",
+        "A vein puncture, high potassium, a potassium chloride ampoule in the grate. He was injected with potassium chloride.",
       ],
     },
     {
       number: 4,
       title: "The Ledger",
       envelope: "Envelope 4",
-      minutes: 30,
+      minutes: 20,
       files: [
         { id: "r4-bank", exhibit: 22, name: "Trust bank statement, annotated.pdf", type: "record", date: "Sep 2026" },
         { id: "r4-mehta", exhibit: 23, name: "Letter — Adv. Harish Mehta.pdf", type: "document", date: "07 Oct 2026" },
@@ -142,19 +154,51 @@ export const hollowPines: CaseFile = {
       checkpoint: {
         question: "What was Vikram planning to do on Monday morning?",
         choices: [
-          { id: "a", label: "Change his will in Meera's favour" },
+          { id: "a", label: "Change his will" },
           { id: "b", label: "Block Kabir's sale of the lower estate land" },
           { id: "c", label: "Take irregular Trust payments to his lawyer" },
           { id: "d", label: "Cut Arjun off without a rupee" },
         ],
         answer: "c",
         explanation:
-          "Advocate Mehta's letter confirms an 11 AM meeting on Monday about 'irregularities in Trust disbursements', and advises Vikram to say nothing to the other trustees.",
+          "Advocate Mehta's letter confirms an 11 AM meeting on Monday about irregular payments out of the Trust, and tells Vikram to say nothing to the trustee who approved them. The will was never going to change.",
       },
       hints: [
-        "Several people feared Monday. Only one document says what Monday was actually about.",
-        "The lawyer's letter that Meera hid is not about the will. Read it alongside the bank statement Vikram marked up.",
-        "Monday at 11 AM: Advocate Mehta, about irregular payments out of the Rathore Trust to Kapoor Diagnostics LLP.",
+        "Three people feared Monday for three different reasons. Only one document says what Monday was actually about.",
+        "The letter Meera hid is not about the will. Read it alongside the bank statement Vikram marked up.",
+        "Monday at 11 AM: Advocate Mehta, about ₹1.84 crore paid by the Trust to Kapoor Diagnostics LLP.",
+      ],
+    },
+    {
+      number: 5,
+      title: "The Wrong Clock",
+      envelope: "Envelope 5",
+      minutes: 25,
+      files: [
+        { id: "r5-nvr", exhibit: 28, name: "Service report — gate camera recorder.pdf", type: "record", date: "14 Oct 2026" },
+        { id: "r5-gatebook", exhibit: 29, name: "Chowkidar's gate register.jpg", type: "document", date: "10 Oct 2026" },
+        { id: "r5-sunanda", exhibit: 30, name: "Statement — Sunanda Kapoor.pdf", type: "statement", date: "14 Oct 2026" },
+        { id: "r5-kapoor2", exhibit: 31, name: "Second statement — Dr. Anand Kapoor.pdf", type: "statement", date: "14 Oct 2026" },
+        { id: "r5-meeraphone", exhibit: 32, name: "Call log — Meera's mobile.pdf", type: "record", date: "10 Oct 2026" },
+        { id: "r5-service", exhibit: 33, name: "Nursing service card, 2011.pdf", type: "document", date: "2011" },
+        { id: "r5-wedding", exhibit: 34, name: "Photograph — wedding, 2015.jpg", type: "photo", date: "14 Feb 2015" },
+      ],
+      checkpoint: {
+        question: "When did Dr. Kapoor's car really leave Hollow Pines?",
+        choices: [
+          { id: "a", label: "21:58, as the camera shows" },
+          { id: "b", label: "21:40, before Vikram fell" },
+          { id: "c", label: "22:15, after the 'voices'" },
+          { id: "d", label: "21:20, when Sunita brought the milk" },
+        ],
+        answer: "b",
+        explanation:
+          "The recorder's clock was set by hand from the guard hut's wall clock after Friday's power cut, and runs 18 minutes fast. Dr. Kapoor's car left at 21:40 — four minutes before Vikram fell. He told the truth about the one thing everyone thought he lied about.",
+      },
+      hints: [
+        "The gate camera has seemed right about everything so far. Has it?",
+        "Compare the camera's time for the police jeep with the inquest report, and its time for Dr. Kapoor's morning arrival with the time written on his note.",
+        "The recorder runs 18 minutes fast. Take 18 minutes off 21:58.",
       ],
     },
   ],
@@ -163,53 +207,60 @@ export const hollowPines: CaseFile = {
       { id: "B-01", text: "Mussoorie. Sunday, the eleventh of October. The mist has not lifted from Camel's Back Road, and at Hollow Pines the curtains of the study are still drawn." },
       { id: "B-02", text: "At ten past seven, the housekeeper found Vikram Singh Rathore in his armchair, cold, his reading glasses in his lap." },
       { id: "B-03", text: "His doctor of twenty years called it his heart. The inspector called the Bureau." },
-      { id: "B-04", text: "Your file has four envelopes. Each round, one opens. At the end of each, a single question stands between you and the next." },
+      { id: "B-04", text: "Your file has five envelopes. Each round, one opens. At the end of each, a single question stands between you and the next." },
       { id: "B-05", text: "Find who killed him, how it was done, and why. Everything you need is in the evidence. I will not tell you what it means." },
       { id: "B-06", text: "Open folder one." },
     ],
     rounds: {
       2: [
         { id: "R2-01", text: "The time on the watch does not agree with the time on the doctor's note. Inspector Bisht has taken statements from everyone who was at Hollow Pines, or near it." },
-        { id: "R2-02", text: "He has also pulled the register from the camera at the main gate." },
+        { id: "R2-02", text: "He has also pulled the register from the camera at the main gate. It is the only camera on the estate." },
         { id: "R2-03", text: "Open folder two." },
       ],
       3: [
         { id: "R3-01", text: "Monday. The post-mortem is complete. And the ash from the study grate, sieved this morning, holds something the fire did not finish." },
-        { id: "R3-02", text: "Arjun has asked to speak to the inspector again. He says he has something to correct." },
+        { id: "R3-02", text: "Arjun has come to the police station on his own. He says he has something to correct." },
         { id: "R3-03", text: "Open folder three." },
       ],
       4: [
-        { id: "R4-01", text: "Tuesday. In Meera's dressing table, folded inside a jewellery box, the police find an unopened appointment Vikram never kept." },
+        { id: "R4-01", text: "Tuesday. In Meera's dressing table, folded inside a jewellery box, the police find a lawyer's letter that Vikram never saw." },
         { id: "R4-02", text: "On his desk, under the blotter, a bank statement covered in his own pencil." },
-        { id: "R4-03", text: "Open folder four. When you are ready, make your accusation." },
+        { id: "R4-03", text: "Open folder four." },
+      ],
+      5: [
+        { id: "R5-01", text: "Wednesday. Dr. Kapoor has asked to make a second statement, with his lawyer beside him. He has a great deal to confess. Murder, he says, is not part of it." },
+        { id: "R5-02", text: "And a technician from the camera company has come up to Hollow Pines, because the chowkidar said something odd about a clock." },
+        { id: "R5-03", text: "Open folder five. When you are ready, make your accusation." },
       ],
     },
     accusation: [
       { id: "A-01", text: "The file is complete. Name the one who killed Vikram Rathore. Say how. Say why." },
     ],
     reveal: [
-      { id: "V-01", text: "Saturday, five minutes to nine. Dr. Anand Kapoor's car passes the main gate for his weekly visit, as it has every Saturday for years." },
-      { id: "V-02", text: "In the study, he takes Vikram's blood pressure, and gives the usual vitamin shot into the shoulder. Vikram says nothing about the bank statement under his blotter. He has been told to say nothing until Monday." },
-      { id: "V-03", text: "But Anand already knows. The Trust's bank had called to confirm the chairman's request for fourteen months of statements." },
-      { id: "V-04", text: "So there is a second needle. Potassium chloride, drawn from the hospital the day before against a ward that never received it, pushed into the vein at the elbow." },
-      { id: "V-05", text: "At 9:43 the heart falters and Vikram falls. His watch asks if he needs help. Someone presses cancel." },
-      { id: "V-06", text: "Anand lifts him into the armchair, sets the glasses in his lap, and throws the ampoule into the fire. The radio stays on. Sunita will hear 'voices' at a quarter past ten." },
-      { id: "V-07", text: "At 21:58 the camera sees his car leave. He will tell the police he left at 9:40. In the morning he will write 'about 1 AM', and 'cardiac arrest', and suggest the family be spared a post-mortem." },
-      { id: "V-08", text: "Arjun lied to hide a bar tab and a debt. Meera hid a letter she feared was about the will. Kabir feared a Monday that was never about him." },
-      { id: "V-09", text: "Monday was about one crore, eighty-four lakh rupees, paid by the Trust to a laboratory that existed only on paper, owned by Anand and Nisha Kapoor." },
-      { id: "V-10", text: "Case No. 017 is closed." },
+      { id: "V-01", text: "Friday afternoon. The power fails across Camel's Back Road. When it returns, the chowkidar sets the gate camera's clock by the old wall clock in his hut. That clock runs eighteen minutes fast. Nobody notices." },
+      { id: "V-02", text: "Saturday, eight fifty-two. Dr. Anand Kapoor arrives for his weekly visit. In the hall, Meera comes down to greet him. Something passes from his bag to her hand: a syringe, already filled." },
+      { id: "V-03", text: "Anand takes Vikram's blood pressure, gives the vitamin shot into the shoulder, and leaves at 9:40, exactly as he said. The camera writes 21:58. The one thing he told the truth about was the thing that made him look guilty." },
+      { id: "V-04", text: "Two minutes later, Meera knocks on the study door. Anand wants a blood sample before Monday, she says. She was an ICU sister for four years. Her husband rolls up his sleeve." },
+      { id: "V-05", text: "Potassium chloride, into the vein at the elbow. At 9:44 his heart stumbles and he falls against the side table. His watch asks if he needs help. His wife taps: I'm OK." },
+      { id: "V-06", text: "At a quarter past ten, Sunita hears a voice in the study, low, like someone on the phone. It is not the radio. It is Meera, calling the only number she can. Bhaiya. Brother." },
+      { id: "V-07", text: "Put him in the chair. Glasses in his lap. Glass in the fire. I will write it up in the morning." },
+      { id: "V-08", text: "Meera Rathore was born Nisha Meera Kapoor. The second partner in Kapoor Diagnostics LLP was never Anand's wife. It was his sister. One crore, eighty-four lakh rupees, from the Trust her husband chaired." },
+      { id: "V-09", text: "On Thursday she steamed open a lawyer's letter, read the words 'criminal breach of trust', and glued it shut again. She told you she thought it was about the will." },
+      { id: "V-10", text: "In the morning Anand wrote 'one o'clock' and 'cardiac', and begged the family to be spared a post-mortem. On Wednesday he confessed to fraud rather than let you look at his sister." },
+      { id: "V-11", text: "Arjun hid a bar tab. Kabir feared a Monday that was never about him. Vikram wrote 'Thirty years' beside the name of the man he suspected. He never suspected the woman who filled his pill box every Sunday." },
+      { id: "V-12", text: "Case No. 017 is closed." },
     ],
   },
   accusation: {
     methods: [
-      { id: "kcl", label: "Injected potassium chloride into a vein during the weekly visit" },
+      { id: "kcl", label: "Injected potassium chloride into a vein" },
       { id: "sleep", label: "Crushed sleeping tablets into his evening milk" },
       { id: "smother", label: "Smothered him in the armchair" },
+      { id: "digoxin", label: "Swapped his heart tablets for a dangerous dose" },
       { id: "natural", label: "No method. He died of natural causes" },
-      { id: "digoxin", label: "Swapped his heart tablets for a stronger dose" },
     ],
     motives: [
-      { id: "trust", label: "To stop Vikram exposing money stolen from the Rathore Trust" },
+      { id: "fraud", label: "To stop Vikram exposing the money stolen from the Rathore Trust" },
       { id: "will", label: "To inherit before the will could be changed" },
       { id: "debt", label: "To pay off debts after he refused another loan" },
       { id: "land", label: "To push through the sale of the lower estate land" },
@@ -217,26 +268,26 @@ export const hollowPines: CaseFile = {
     ],
   },
   solution: {
-    suspect: "kapoor",
+    suspect: "meera",
     method: "kcl",
-    motive: "trust",
+    motive: "fraud",
     proofs: [
-      { clue: "The watch logs a hard fall at 21:43, an SOS cancelled by hand at 21:44 and no pulse from 21:47.", exhibit: 5 },
-      { clue: "The radio was found switched on, which explains the 'voices' Sunita heard at 22:15.", exhibit: 2 },
-      { clue: "Dr. Kapoor's car leaves the main gate at 21:58, not 21:40 as he stated.", exhibit: 12 },
-      { clue: "Two punctures: a deltoid injection for B12, and a fresh vein puncture at the left elbow. Raised vitreous potassium.", exhibit: 16 },
-      { clue: "A potassium chloride ampoule fragment recovered from the study fireplace.", exhibit: 17 },
-      { clue: "Two ampoules of potassium chloride issued to Dr. Kapoor on 9 October, never countersigned by Ward 3.", exhibit: 18 },
-      { clue: "₹1.84 crore paid by the Trust to Kapoor Diagnostics LLP, partners Anand and Nisha Kapoor.", exhibit: 24 },
-      { clue: "Monday's appointment was about Trust disbursements, with advice to tell no other trustee.", exhibit: 23 },
+      { clue: "The watch logs a hard fall at 21:44, an SOS cancelled by a tap at 21:45 and no pulse from 21:48. Someone was standing beside him.", exhibit: 5 },
+      { clue: "A vein puncture at the left elbow and raised potassium: an intravenous injection of potassium chloride, from ampoules Dr. Kapoor drew on Friday.", exhibit: 16 },
+      { clue: "The gate recorder runs 18 minutes fast: the police jeep shows 08:21 against an arrival of 08:05; Dr. Kapoor 'arrives' at 07:56 but wrote his note at 07:50.", exhibit: 28 },
+      { clue: "So Dr. Kapoor left at 21:40, before the fall. The chowkidar's own book says 9.40.", exhibit: 29 },
+      { clue: "Meera, 'asleep since 9.30', made a six-minute call from Hollow Pines at 22:14 — the 'voices' Sunita heard.", exhibit: 32 },
+      { clue: "She called 'Bhaiya' on +91 94120 51187: Dr. Kapoor's number. Sunanda Kapoor saw him take that call in the garden.", exhibit: 30 },
+      { clue: "Meera is Nisha Meera Kapoor, Dr. Kapoor's sister, a former ICU sister certified to give intravenous drugs.", exhibit: 33 },
+      { clue: "Nisha M. Kapoor is the second partner in Kapoor Diagnostics LLP, which took ₹1.84 crore from the Trust.", exhibit: 24 },
+      { clue: "The lawyer's letter had been slit open and glued shut: Meera knew exactly what Monday was about.", exhibit: 23 },
     ],
   },
 };
 
 export const shelf: ShelfEntry[] = [
   { number: "017", title: "The Silence at Hollow Pines", genre: "Classic murder", status: "available", id: "017" },
-  { number: "018", title: "The Widow of Landour Bazaar", genre: "Supernatural", status: "sealed" },
-  { number: "019", title: "Nine Minutes at Marine Drive", genre: "Heist", status: "sealed" },
+  { number: "018", title: "More cases are being written", genre: "Coming soon", status: "sealed" },
 ];
 
 export const cases: Record<string, CaseFile> = { "017": hollowPines };

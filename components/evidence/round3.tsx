@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { F, Hand, Paper, RoundSeal, Sign, Stamp } from "./parts";
-import { Glyph } from "../Icons";
+import { AudioSlot, ImageSlot } from "../Media";
 
 export function PostMortem() {
   return (
@@ -88,47 +87,12 @@ export function EvidenceTag() {
   return (
     <Paper exhibit={17} envelope={3} variant="white" width={760}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 22, alignItems: "center" }} className="tag-grid">
-        <svg viewBox="0 0 360 300" width="100%" role="img" aria-label="Clear evidence bag holding scorched glass fragments of an ampoule">
-          <defs>
-            <linearGradient id="bag" x1="0" x2="1">
-              <stop offset="0" stopColor="#e9e3d6" stopOpacity=".6" />
-              <stop offset=".5" stopColor="#ffffff" stopOpacity=".2" />
-              <stop offset="1" stopColor="#d9d1c0" stopOpacity=".6" />
-            </linearGradient>
-          </defs>
-          <rect x="20" y="20" width="320" height="260" fill="#f1e9d8" />
-          <rect x="40" y="36" width="280" height="230" rx="4" fill="url(#bag)" stroke="#7a6a55" />
-          <rect x="40" y="36" width="280" height="22" fill="#1b1611" />
-          <text x="180" y="51" textAnchor="middle" fill="#f1e9d8" fontFamily="Courier Prime, monospace" fontSize="11" letterSpacing="2">EVIDENCE · DO NOT OPEN</text>
-          {/* ash dusting */}
-          {[...Array(40)].map((_, i) => (
-            <circle key={i} cx={70 + ((i * 53) % 220)} cy={180 + ((i * 29) % 70)} r={1 + (i % 3)} fill="#6f665c" opacity=".35" />
-          ))}
-          {/* ampoule body fragment */}
-          <g transform="translate(120 120) rotate(-18)">
-            <path d="M0 0 H86 Q96 0 96 10 V40 Q96 50 86 50 H0 L6 38 L-2 26 L5 14Z" fill="#cfc8ba" stroke="#4a4038" />
-            <rect x="12" y="10" width="70" height="30" fill="#f1e9d8" opacity=".85" />
-            <text x="16" y="21" fontFamily="JetBrains Mono, monospace" fontSize="7.4" fill="#1b1611">…ASSIUM CHLORI…</text>
-            <text x="16" y="30" fontFamily="JetBrains Mono, monospace" fontSize="7.4" fill="#1b1611">INJ. 15% w/v 10ml</text>
-            <text x="16" y="38" fontFamily="JetBrains Mono, monospace" fontSize="6.4" fill="#1b1611">B.No. KC26… EXP 03/28</text>
-            <path d="M40 0 L50 50" stroke="#1b1611" strokeWidth=".6" opacity=".4" />
-            <ellipse cx="70" cy="44" rx="10" ry="4" fill="#3e3226" opacity=".35" />
-          </g>
-          {/* ampoule neck */}
-          <g transform="translate(232 196) rotate(28)">
-            <path d="M0 0 Q10 -4 20 0 L22 10 Q30 12 30 22 L-10 22 Q-10 12 -2 10Z" fill="#cfc8ba" stroke="#4a4038" />
-            <line x1="-6" y1="14" x2="26" y2="14" stroke="#6e2f1c" strokeWidth="2" />
-          </g>
-          {/* small shards */}
-          <path d="M90 214 l10 -6 l4 10z" fill="#cfc8ba" stroke="#4a4038" />
-          <path d="M270 120 l8 4 l-6 8z" fill="#cfc8ba" stroke="#4a4038" />
-          {/* scale */}
-          <g transform="translate(60 250)">
-            <rect width="100" height="8" fill="#f1e9d8" stroke="#1b1611" strokeWidth=".6" />
-            {[...Array(11)].map((_, i) => <rect key={i} x={i * 10} width=".8" height={i % 5 === 0 ? 6 : 3} fill="#1b1611" />)}
-            <text x="106" y="8" fontSize="8" fontFamily="Courier Prime, monospace">1 cm</text>
-          </g>
-        </svg>
+        <ImageSlot
+          file="exhibit-17-ampoule.jpg"
+          ratio="6 / 5"
+          label="Evidence photograph"
+          alt="Clear police evidence bag on cream card, holding scorched glass from a 10 ml ampoule: a body fragment with a partly burnt label reading '…ASSIUM CHLORI… INJ. 15% w/v 10ml, B.No. KC26…', a broken neck with a brown ring, ash dust, and a 1 cm scale."
+        />
         <div style={{ position: "relative" }}>
           <div style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid #7a6a55", position: "absolute", top: 12, left: 12, background: "#f1e9d8" }} />
           <div style={{ background: "#c9a66b", padding: "44px 18px 18px", clipPath: "polygon(18% 0, 100% 0, 100% 100%, 0 100%, 0 14%)", color: "#1b1611" }}>
@@ -296,66 +260,19 @@ const VM_LINES: [string, string][] = [
   ["00:38", "[End of message]"],
 ];
 
-export function Voicemail({ transcript }: { transcript?: string }) {
-  const [playing, setPlaying] = useState(false);
-  const [pos, setPos] = useState(0);
-  const tick = useRef<number | null>(null);
-
-  const stop = () => {
-    setPlaying(false);
-    if (tick.current) window.clearInterval(tick.current);
-    try { window.speechSynthesis?.cancel(); } catch {}
-  };
-
-  useEffect(() => stop, []);
-
-  const play = () => {
-    if (playing) return stop();
-    setPlaying(true);
-    setPos(0);
-    try {
-      if (transcript && "speechSynthesis" in window) {
-        const u = new SpeechSynthesisUtterance(transcript);
-        u.rate = 1.02;
-        u.pitch = 0.85;
-        u.onend = () => stop();
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(u);
-      }
-    } catch {}
-    const start = Date.now();
-    tick.current = window.setInterval(() => {
-      const s = (Date.now() - start) / 1000;
-      if (s >= 38) { setPos(38); stop(); } else setPos(s);
-    }, 200);
-  };
-
-  const bars = Array.from({ length: 76 }, (_, i) => 6 + Math.abs(Math.sin(i * 1.7) * 18 + Math.sin(i * 0.37) * 10));
-  const mm = (s: number) => `00:${String(Math.floor(s)).padStart(2, "0")}`;
-
+export function Voicemail() {
   return (
     <Paper exhibit={20} envelope={3} variant="white" width={760}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
         <div>
           <div className="serif" style={{ fontSize: 18, fontWeight: 700 }}>AUDIO EXHIBIT — VOICEMAIL</div>
           <div className="small mono">VM_20261010_221104.m4a · 00:38 · AAC 64 kbps mono</div>
-          <div className="small">From: Kabir Sethi (+91 98970 2••••) · To: Vikram Rathore · Left: Sat 10.10.2026, 22:11</div>
+          <div className="small">From: Kabir Sethi (+91 98970 21460) · To: Vikram Rathore · Left: Sat 10.10.2026, 22:11</div>
         </div>
         <Stamp rotate={4} size={11}>Transcribed</Stamp>
       </div>
       <hr className="double" />
-      <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", border: "1px solid rgba(27,22,17,.5)", background: "rgba(27,22,17,.04)" }}>
-        <button onClick={play} aria-label={playing ? "Stop" : "Play"} style={{ width: 40, height: 40, borderRadius: "50%", border: "1px solid #1b1611", background: "#1b1611", color: "#f1e9d8", display: "grid", placeItems: "center", cursor: "pointer", flex: "none" }}>
-          {playing ? Glyph.pause : Glyph.play}
-        </button>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 2, height: 40, overflow: "hidden" }}>
-          {bars.map((h, i) => (
-            <span key={i} style={{ width: 3, height: h, background: i / bars.length <= pos / 38 ? "#1b1611" : "rgba(27,22,17,.25)", flex: "none" }} />
-          ))}
-        </div>
-        <span className="mono small" style={{ flex: "none" }}>{mm(pos)} / 00:38</span>
-      </div>
-      <div className="small muted no-print" style={{ marginTop: 6 }}>Playback uses your device&apos;s voice as a stand-in for the recorded clip.</div>
+      <AudioSlot file="exhibit-20-voicemail.mp3" seconds={38} />
       <div className="serif" style={{ fontWeight: 700, marginTop: 16 }}>Transcript</div>
       <table style={{ marginTop: 6 }}>
         <tbody>

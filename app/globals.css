@@ -281,3 +281,59 @@ button { font-family: inherit; }
   .tag-grid { grid-template-columns: 1fr !important; }
   .folder { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---------- v2 additions ---------- */
+.desk-title { font-family: var(--display); font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desk-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.show-sm { display: none !important; }
+.banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 20px; background: var(--desk-3); border-bottom: 1px solid var(--line-2); color: var(--text-2); font-style: italic; flex-wrap: wrap; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--manila); flex: none; }
+.dot.off { background: transparent; border: 1px solid var(--text-3); }
+.filetable tr.held td { cursor: default; opacity: .55; }
+.filetable tr.held:hover td { background: transparent; }
+.heldby { display: block; font-family: var(--type); font-size: 11px; letter-spacing: .06em; color: var(--manila); margin-top: 2px; }
+.filecard.held { opacity: .55; cursor: default; }
+.roster { list-style: none; padding: 0; margin: 10px 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.roster li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); }
+.votes { font-family: var(--type); font-size: 11px; color: var(--manila); text-align: right; }
+.choice.wrong { border-color: var(--stamp); }
+.choice.readonly { cursor: default; }
+.choice.readonly:hover { background: transparent; border-color: var(--line); }
+.choice.readonly.on { border-color: var(--manila); }
+.toggle.disabled { opacity: .6; cursor: default; }
+.reveal-prog { display: flex; gap: 3px; flex: 1; min-width: 120px; max-width: 320px; }
+.reveal-prog span { flex: 1; height: 2px; background: var(--line-2); }
+.reveal-prog span.on { background: var(--manila); }
+.room-h { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 5vw, 38px); margin: 8px 0 20px; line-height: 1.15; }
+.field-input { flex: 1; min-width: 200px; background: var(--desk-2); border: 1px solid var(--line-2); color: var(--text); padding: 12px 14px; font-family: var(--serif); font-size: 18px; }
+.field-input:focus { outline: 1px solid var(--manila); border-color: var(--manila); }
+.field-input.code { font-family: var(--type); letter-spacing: .4em; text-transform: uppercase; font-size: 22px; max-width: 260px; }
+.lobby-code { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding: 18px 20px; border: 1px solid var(--line-2); background: var(--desk-2); }
+.code-big { font-family: var(--type); font-size: 40px; letter-spacing: .3em; color: var(--paper); margin-top: 4px; }
+.mono-inline { font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.note { font-size: 14px; color: var(--text-2); border-left: 2px solid var(--manila); padding: 6px 12px; margin: 14px 0; font-style: italic; }
+.mode-card { border: 1px solid var(--brown); padding: 18px; }
+.mode-card p { margin: 6px 0 14px; font-size: 15px; color: var(--brown-deep); }
+.answer-box .stamp { transform: rotate(-3deg); }
+@media (max-width: 900px) {
+  .narration { z-index: 45; }
+  .show-sm { display: inline-flex !important; }
+  .desk-actions .btn.sm { padding: 7px 8px; letter-spacing: .06em; }
+  .desk-title { font-size: 15px; }
+  .code-big { font-size: 32px; }
+}
+@media (max-width: 480px) {
+  .desk-top { flex-wrap: wrap; }
+  .desk-actions { width: 100%; justify-content: space-between; }
+}
+@media (max-width: 640px) {
+  .folders { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }
+  .folders::-webkit-scrollbar { display: none; }
+  .folder { flex: 0 0 116px; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px; }
+  .folder-label .t { font-size: 13.5px; }
+  .nar-text { font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .nar-text.open { -webkit-line-clamp: unset; display: block; }
+  .desk { padding-bottom: 150px; }
+}
+.desk-left { min-width: 0; }
+@media (max-width: 900px) { .desk-body { grid-template-columns: minmax(0, 1fr); } }

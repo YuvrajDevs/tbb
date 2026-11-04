@@ -1,44 +1,75 @@
-# The Blackwood Bureau — web prototype
+# The Blackwood Bureau — web
 
 *Open the file. Find the truth.*
 
-A detective mystery game played as an official case file. This is the web build of
-Phase 1 from the PRD: one case, solo mode, folders, file viewer, narration captions
-(with optional device voice), round timers, checkpoints, hints, notebook, accusation,
-reveal and report card, plus a printable case kit.
+A detective mystery played as an official case file, solo or as a party room. This build ships one
+complete case, **No. 017 — The Silence at Hollow Pines** (5 envelopes, 34 exhibits, about 2 hours).
 
 ## Run
 
 ```bash
 npm install
-npm run dev      # http://localhost:3000
+npm run dev            # http://localhost:3000
 npm run build && npm start
 ```
+
+## Party rooms
+
+Rooms sync over **Supabase Realtime** (broadcast only, no tables). Set two environment variables:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon or publishable key>
+```
+
+Without them, rooms run in **same-device mode** over `BroadcastChannel`: every tab in one browser can
+join, which is handy for development, but phones cannot reach each other.
+
+How a room works:
+
+- The host taps **Open a room** on the case cover and gets a 5-character code and link. Players join at
+  `/room/<CODE>`, enter a name and wait in the lobby. Up to 6 players.
+- The host picks **shared** or **split** evidence and whether timers run, then starts the case.
+- The host moves the narration, submits checkpoint answers and opens each folder for everyone. Any
+  player can replay a line, use hints (private), take notes (private) and vote on the accusation.
+- The room's state lives on every device. If the host drops, the room pauses and control passes to
+  the next player who joined. A player who rejoins with the same name gets their seat back.
+
+## Media
+
+Photos, the voicemail and narration recordings are supplied separately. See
+[`docs/ASSETS.md`](docs/ASSETS.md) for every file name and what it must show. Until a file exists the
+exhibit shows a labelled placeholder, and narration falls back to the device's voice.
 
 ## Structure
 
 | Path | What it is |
 | --- | --- |
 | `app/page.tsx` | Case shelf |
-| `app/case/[id]/page.tsx` | Case cover (solo / room / print) |
-| `app/case/[id]/desk` | Case desk: folders, file manager, viewer, narration bar |
-| `app/case/[id]/kit` | Print-ready case kit (host guide, envelope labels, all exhibits, case board, sealed solution) |
-| `lib/cases/hollow-pines.ts` | Case 017 data: rounds, checkpoints, hints, narration script, solution |
-| `components/evidence/` | Each exhibit drawn as its own document (27 in total) |
-| `lib/progress.ts` | Progress, notes and settings saved in the browser |
-
-## Case 017 — The Silence at Hollow Pines
-
-Four envelopes, 27 exhibits: inquest report, scene photograph, floor plan, smartwatch
-export, witness statements, CCTV register and still, chat printout, call records,
-post-mortem, evidence tag, hospital dispensary register, bar receipt, voicemail,
-diary page, annotated bank statement, lawyer's letter, LLP master data, email, will
-extract. All characters and documents are fictional.
+| `app/case/[id]` | Case cover: solo, party room, print kit |
+| `app/case/[id]/desk` | Solo case desk |
+| `app/room/[code]` | Party room: name, lobby, shared desk |
+| `app/case/[id]/kit` | Print-ready case kit |
+| `lib/cases/hollow-pines.ts` | Case data: rounds, checkpoints, hints, narration, solution |
+| `lib/game/state.ts` | The rules: one pure reducer used by solo and rooms |
+| `lib/game/game.ts` | Solo store and room sync (heartbeats, host hand-over, rejoin) |
+| `lib/game/transport.ts` | Supabase Realtime or same-device transport |
+| `components/evidence/` | Every exhibit drawn as its own document |
+| `docs/CASE-017-BIBLE.md` | The solution and timeline (spoilers) |
 
 ## Not yet built
 
-- Rooms / party mode (needs Supabase Realtime)
-- Accounts, purchases, cross-device sync (progress is per-browser for now)
-- Per-buyer watermarked ZIP (the kit is a print page for now)
-- Recorded narrator audio (device text-to-speech stands in)
-- Content protection: answers ship in the client bundle in this prototype
+Payments, accounts and cross-device progress for solo, the watermarked ZIP download, and server-side
+answer protection (answers ship in the page in this build).
+
+## Tests
+
+End-to-end tests drive a real browser through a full solo case, a three-player room (split evidence,
+host hand-over, rejoin, votes, shared reveal) and room edge cases (removing a player, a host losing
+network and coming back, refreshes). Room tests use same-device mode, so run the server without the
+Supabase keys. They need Playwright and a running server:
+
+```bash
+npm run build && npm start &
+BASE=http://localhost:3000 npm run test:e2e
+```

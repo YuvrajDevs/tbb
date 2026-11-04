@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Shelf } from "@/components/Shelf";
 
 export default function Home() {
@@ -14,7 +15,7 @@ export default function Home() {
         <div style={{ textAlign: "right", color: "var(--text-3)", fontFamily: "var(--type)", fontSize: 12, letterSpacing: ".08em" }}>
           CASE ARCHIVE
           <br />
-          3 files on record
+          <Link href="/room" style={{ color: "var(--text-2)" }}>Join a party room →</Link>
         </div>
       </header>
       <hr className="rule" style={{ margin: "34px 0 40px" }} />

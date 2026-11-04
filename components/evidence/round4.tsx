@@ -1,4 +1,4 @@
-import { F, Hand, Paper, RoundSeal, Sign, Stamp, StatementPaper } from "./parts";
+import { F, Hand, Paper, Q, RoundSeal, Sign, Stamp, StatementPaper } from "./parts";
 
 const KD_PAYMENTS: [string, number][] = [
   ["Aug 2025", 1180000], ["Sep 2025", 1240000], ["Oct 2025", 1295000], ["Nov 2025", 1310000],
@@ -120,7 +120,7 @@ export function MehtaLetter() {
         <div>Harish Mehta<br /><span className="small">Advocate, Enrol. No. UK/412/1991</span></div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 10, flexWrap: "wrap" }}>
-        <Hand brown style={{ fontSize: 18 }}>Found unopened, jewellery box, dressing table of Smt. M. Rathore. Opened by IO 13.10.26 — RKB</Hand>
+        <Hand brown style={{ fontSize: 18 }}>Found sealed, in jewellery box, dressing table of Smt. M. Rathore. Opened by IO 13.10.26. NB envelope flap cockled, fresh glue laid over the original gum — sent to FSL — RKB</Hand>
         <Stamp rotate={-7}>Received 08 Oct</Stamp>
       </div>
     </Paper>
@@ -163,12 +163,12 @@ export function LlpMaster() {
         <thead><tr><th>DIN/DPIN</th><th>Name</th><th>Begin date</th></tr></thead>
         <tbody>
           <tr><td>08741196</td><td>ANAND KAPOOR</td><td>14/06/2025</td></tr>
-          <tr><td>08741197</td><td>NISHA KAPOOR</td><td>14/06/2025</td></tr>
+          <tr><td>08741197</td><td>NISHA M. KAPOOR</td><td>14/06/2025</td></tr>
         </tbody>
       </table>
       <div style={{ marginTop: 16, borderLeft: "3px solid var(--ink)", paddingLeft: 12 }}>
         <div className="serif" style={{ fontWeight: 700 }}>Field verification (IO)</div>
-        <p style={{ margin: "4px 0" }}>13.10.2026, 10:00. Registered address is the first-floor flat of the residence of Dr. A. Kapoor. No laboratory, equipment, signage or staff. Rathore Memorial Hospital pathology department (Dr. S. Nautiyal, HoD) confirms all tests are done in-house and the department has never sent samples to &ldquo;Kapoor Diagnostics&rdquo;.</p>
+        <p style={{ margin: "4px 0" }}>13.10.2026, 10:00. Registered address is the first-floor flat of Shanti Kunj, the Kapoor family house. Neighbours say it was last lived in by a younger relative of Dr. Kapoor and has been empty for some years. No laboratory, equipment, signage or staff. Rathore Memorial Hospital pathology department (Dr. S. Nautiyal, HoD) confirms all tests are done in-house and the department has never sent samples to &ldquo;Kapoor Diagnostics&rdquo;.</p>
         <Sign style={{ fontSize: 26 }}>P. Joshi</Sign> <span className="small">SI, P.S. Mussoorie</span>
       </div>
     </Paper>
@@ -255,9 +255,7 @@ export function MeeraSupplementary() {
       <p>On Thursday, the 8th, the chowkidar brought an envelope by hand from Mehta &amp; Associates. Harish Mehta drew up Vikram&apos;s will. Vikram and I had quarrelled that week about Arjun; he said I was turning him against his son. When I saw the envelope I was sure he was changing his will. I panicked. I took it before he saw it and hid it in my jewellery box. I did not open it. I meant to put it back.</p>
       <p>I did not know it was about the Trust. I did not know anything was wrong at the Trust.</p>
       <p>I have nothing to do with my husband&apos;s death. I am ashamed that I lied. I was ashamed of the letter, not of anything else.</p>
-      <div style={{ marginTop: 6 }}>
-        <Hand brown style={{ fontSize: 18 }}>NB: Vikram knew of the meeting regardless — it was arranged by phone (Exh. 15: 07-10 16:22). — RKB</Hand>
-      </div>
+      <Q q="Did you open the envelope?">No. I swear it. I never opened it.</Q>
     </StatementPaper>
   );
 }

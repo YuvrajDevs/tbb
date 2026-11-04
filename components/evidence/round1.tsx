@@ -1,4 +1,5 @@
 import { F, Hand, Paper, RoundSeal, Sign, Stamp, StatementPaper } from "./parts";
+import { ImageSlot } from "../Media";
 
 /* Exhibit 1 — Bureau assignment memo */
 export function Memo() {
@@ -34,7 +35,7 @@ export function Memo() {
           <tr><td>Smt. Sunita Negi</td><td>52</td><td>Housekeeper</td><td>Yes, staff quarter</td></tr>
         </tbody>
       </table>
-      <p>4. You will work the file in four envelopes, opened in order. Answer the question at the close of each before proceeding. Your final report must name <u>who</u>, <u>how</u> and <u>why</u>.</p>
+      <p>4. You will work the file in five envelopes, opened in order. Answer the question at the close of each before proceeding. Your final report must name <u>who</u>, <u>how</u> and <u>why</u>.</p>
       <p>5. Work only from what is in the file. Hearsay, instinct and the reputations of doctors are not evidence.</p>
       <div style={{ marginTop: 26, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
@@ -127,121 +128,15 @@ export function ScenePhoto() {
     <Paper exhibit={3} envelope={1} variant="white" width={820}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 8 }}>
         <span>P.S. MUSSOORIE · SCENE OF CRIME UNIT</span>
-        <span>PHOTO NO. 3/A</span>
+        <span>PHOTO NO. 3/A · 11.10.2026 08:32</span>
       </div>
       <div style={{ background: "#1b1611", padding: 10 }}>
-        <svg viewBox="0 0 800 520" width="100%" style={{ display: "block", filter: "sepia(.55) contrast(1.05)" }} role="img" aria-label="Sepia photograph of the study at Hollow Pines">
-          <defs>
-            <radialGradient id="lampglow" cx="72%" cy="30%" r="45%">
-              <stop offset="0" stopColor="#d8c39a" stopOpacity=".55" />
-              <stop offset="1" stopColor="#1b1611" stopOpacity="0" />
-            </radialGradient>
-            <filter id="grain">
-              <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch" />
-              <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0" />
-            </filter>
-            <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#4a3a2a" />
-              <stop offset="1" stopColor="#21180f" />
-            </linearGradient>
-          </defs>
-          {/* walls */}
-          <rect width="800" height="330" fill="#3a2f24" />
-          {[...Array(16)].map((_, i) => (
-            <rect key={i} x={i * 50} y="0" width="1" height="330" fill="#2e251c" />
-          ))}
-          <rect y="300" width="800" height="30" fill="#2a2018" />
-          {/* floor */}
-          <rect y="330" width="800" height="190" fill="url(#floor)" />
-          {/* fireplace */}
-          <rect x="40" y="150" width="200" height="180" fill="#5b4a38" />
-          <rect x="30" y="140" width="220" height="16" fill="#6c5a45" />
-          <rect x="80" y="200" width="120" height="130" fill="#120d09" />
-          <path d="M92 318 Q140 296 188 318 L188 330 L92 330Z" fill="#6f665c" />
-          <circle cx="120" cy="316" r="4" fill="#8b8376" />
-          <circle cx="150" cy="312" r="3" fill="#8b8376" />
-          {/* clock on mantel */}
-          <rect x="120" y="104" width="40" height="36" fill="#2a2018" />
-          <circle cx="140" cy="122" r="12" fill="#d8c39a" />
-          <line x1="140" y1="122" x2="140" y2="114" stroke="#1b1611" strokeWidth="1.5" />
-          <line x1="140" y1="122" x2="146" y2="124" stroke="#1b1611" strokeWidth="1.5" />
-          {/* bookshelf */}
-          <rect x="300" y="40" width="170" height="290" fill="#2a2018" />
-          {[0, 1, 2, 3, 4].map((r) => (
-            <g key={r}>
-              <rect x="300" y={40 + r * 58 + 54} width="170" height="5" fill="#4a3a2a" />
-              {[...Array(11)].map((_, i) => (
-                <rect key={i} x={306 + i * 14} y={40 + r * 58 + 14 + ((i * 7 + r * 3) % 9)} width={11} height={40 - ((i * 7 + r * 3) % 9)} fill={["#5b4a38", "#6c5a45", "#3e3226", "#7a6852"][(i + r) % 4]} />
-              ))}
-            </g>
-          ))}
-          {/* radio on shelf */}
-          <rect x="330" y="214" width="76" height="36" fill="#6b4a2b" stroke="#2a2018" />
-          <rect x="336" y="220" width="36" height="24" fill="#3e2a18" />
-          <circle cx="388" cy="232" r="7" fill="#d8c39a" />
-          <circle cx="372" cy="226" r="1.6" fill="#ece3d0" />
-          {/* window with curtains */}
-          <rect x="540" y="40" width="150" height="190" fill="#1b1611" />
-          <path d="M530 34 H700 V250 Q660 230 640 250 Q620 236 610 250 V34Z" fill="#4a3426" opacity=".95" />
-          <path d="M530 34 H620 V250 Q590 240 560 250 Q545 236 530 250Z" fill="#5a4030" />
-          {/* desk + lamp */}
-          <rect x="600" y="260" width="190" height="16" fill="#3e2a18" />
-          <rect x="610" y="276" width="14" height="80" fill="#2a2018" />
-          <rect x="766" y="276" width="14" height="80" fill="#2a2018" />
-          <path d="M700 260 L708 200 L690 196" stroke="#1b1611" strokeWidth="4" fill="none" />
-          <path d="M672 182 L708 182 L700 200 L680 200Z" fill="#2a2018" />
-          <rect width="800" height="520" fill="url(#lampglow)" />
-          <rect x="640" y="250" width="60" height="10" fill="#d8c39a" opacity=".7" />
-          {/* rug displaced */}
-          <path d="M300 400 L640 380 L700 470 L330 500Z" fill="#5b3a25" />
-          <path d="M310 404 L630 385 L688 466 L338 494Z" fill="none" stroke="#8a6a43" strokeWidth="2" strokeDasharray="6 4" />
-          <path d="M600 382 Q620 360 645 376 L640 380Z" fill="#6b4a2b" />
-          {/* side table */}
-          <ellipse cx="270" cy="372" rx="38" ry="10" fill="#3e2a18" />
-          <rect x="262" y="372" width="16" height="70" fill="#2a2018" />
-          <path d="M236 368 L246 366 L244 374Z" fill="#8a6a43" />
-          <rect x="262" y="344" width="16" height="26" fill="#9b958b" />
-          <ellipse cx="270" cy="344" rx="8" ry="2.5" fill="#d8c39a" />
-          {/* armchair */}
-          <path d="M150 300 Q150 250 200 248 H270 Q320 250 318 300 V420 H150Z" fill="#2a1a10" />
-          <rect x="130" y="330" width="40" height="100" rx="12" fill="#3a2416" />
-          <rect x="298" y="330" width="40" height="100" rx="12" fill="#3a2416" />
-          <rect x="160" y="380" width="150" height="40" fill="#3a2416" />
-          {/* seated figure, shawl */}
-          <path d="M190 270 Q236 244 262 280 Q290 330 278 384 H186 Q174 330 190 270Z" fill="#6f665c" />
-          <circle cx="250" cy="282" r="20" fill="#9b8b73" />
-          <path d="M226 382 L230 440 M260 382 L262 440" stroke="#4a4038" strokeWidth="18" strokeLinecap="round" />
-          <rect x="220" y="372" width="30" height="7" rx="3" fill="#d8c39a" />
-          {/* book on floor */}
-          <path d="M108 460 L160 448 L172 470 L118 484Z" fill="#7a6852" />
-          {/* chappal under desk */}
-          <ellipse cx="660" cy="400" rx="18" ry="7" fill="#5b3a25" />
-          {/* evidence tents */}
-          {[
-            [262, 318, "1"],
-            [210, 352, "2"],
-            [130, 446, "3"],
-            [664, 382, "4"],
-            [360, 196, "5"],
-            [164, 82, "6"],
-            [240, 400, "7"],
-          ].map(([x, y, n]) => (
-            <g key={n as string} transform={`translate(${x} ${y})`}>
-              <path d="M0 20 L10 0 L20 20Z" fill="#f1e9d8" stroke="#1b1611" />
-              <text x="10" y="17" textAnchor="middle" fontFamily="Courier Prime, monospace" fontWeight="700" fontSize="11" fill="#1b1611">{n}</text>
-            </g>
-          ))}
-          {/* scale ruler */}
-          <g transform="translate(560 492)">
-            <rect width="200" height="14" fill="#f1e9d8" />
-            {[...Array(21)].map((_, i) => (
-              <rect key={i} x={i * 10} y="0" width="1" height={i % 5 === 0 ? 10 : 5} fill="#1b1611" />
-            ))}
-            <text x="204" y="11" fontSize="10" fill="#f1e9d8" fontFamily="Courier Prime, monospace">1 m</text>
-          </g>
-          <rect width="800" height="520" filter="url(#grain)" />
-          <text x="784" y="24" textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize="14" fill="#e9b26a">11.10.2026  08:32</text>
-        </svg>
+        <ImageSlot
+          file="exhibit-03-study.jpg"
+          dark
+          label="Scene photograph"
+          alt="The study at Hollow Pines from the doorway: the deceased seated in a leather armchair facing the fireplace, rug rucked toward the hearth, milk tumbler on the side table, radio on the bookshelf, numbered evidence markers 1 to 7."
+        />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 24px", marginTop: 14, fontSize: 12.5 }}>
         <div><b>1</b> Steel tumbler of milk, untouched</div>
@@ -251,7 +146,7 @@ export function ScenePhoto() {
         <div><b>5</b> Radio, switched on at arrival</div>
         <div><b>6</b> Mantel clock, running, correct time</div>
         <div><b>7</b> Chipped corner, side table</div>
-        <div className="muted">Rug displaced ~30 cm (dotted: original line)</div>
+        <div className="muted">Rug displaced ~30 cm toward fireplace</div>
       </div>
       <hr className="thin" />
       <div className="small" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
@@ -418,14 +313,14 @@ export function WatchExport() {
     ["2026-10-10 21:15:00", "71", "97", "—"],
     ["2026-10-10 21:30:00", "70", "97", "—"],
     ["2026-10-10 21:38:00", "72", "96", "—"],
-    ["2026-10-10 21:40:44", "118", "94", "—", true],
-    ["2026-10-10 21:41:30", "—", "—", "IRREGULAR RHYTHM NOTIFICATION", true],
-    ["2026-10-10 21:42:10", "41", "89", "Low heart rate (<45)", true],
-    ["2026-10-10 21:43:05", "33", "—", "HARD FALL DETECTED", true],
-    ["2026-10-10 21:43:06", "—", "—", "Prompt: 'It looks like you've taken a hard fall'. SOS in 60 s", true],
-    ["2026-10-10 21:44:02", "—", "—", "SOS cancelled — user input (tap: 'I'm OK')", true],
-    ["2026-10-10 21:45:00", "22", "—", "—", true],
-    ["2026-10-10 21:47:18", "0", "—", "Heart rate unavailable. Wrist detection: ON", true],
+    ["2026-10-10 21:42:10", "121", "94", "High heart rate (sudden onset)", true],
+    ["2026-10-10 21:42:51", "—", "—", "IRREGULAR RHYTHM NOTIFICATION", true],
+    ["2026-10-10 21:43:30", "40", "88", "Low heart rate (<45)", true],
+    ["2026-10-10 21:44:05", "31", "—", "HARD FALL DETECTED", true],
+    ["2026-10-10 21:44:06", "—", "—", "Prompt: 'It looks like you've taken a hard fall'. SOS in 60 s", true],
+    ["2026-10-10 21:45:02", "—", "—", "SOS cancelled — user input (tap: 'I'm OK')", true],
+    ["2026-10-10 21:46:00", "19", "—", "—", true],
+    ["2026-10-10 21:48:18", "0", "—", "Heart rate unavailable. Wrist detection: ON", true],
     ["2026-10-10 22:00:00", "—", "—", "No reading. Wrist detection: ON"],
     ["2026-10-10 22:30:00", "—", "—", "No reading. Wrist detection: ON"],
     ["2026-10-10 23:00:00", "—", "—", "Bedtime reminder shown. Not acknowledged"],
@@ -472,6 +367,7 @@ export function WatchExport() {
           # Readings sampled every 5 min at rest, continuously on alerts. Rows filtered 19:30–08:45 by examiner.
           <br /># &quot;Wrist detection: ON&quot; = device in skin contact (strap fastened). Sensor requires perfusion for HR.
           <br /># Fall/SOS events: on-device. Cancellation requires a physical tap on the screen.
+          <br /># SOS would have called: 112 (emergency), then contacts &quot;Meera&quot; and &quot;Anand (Dr.)&quot;.
         </div>
         <hr className="thin" />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 10 }}>
@@ -505,7 +401,7 @@ export function SunitaStatement() {
       <p>I had lit the fire in the study at eight o&apos;clock, as always in October. Memsahib went upstairs at about nine with a headache. She told me not to disturb her.</p>
       <p>Doctor Sahib came at about five to nine. He comes every Saturday to check Sahib&apos;s pressure and give his vitamin injection. He had his black bag.</p>
       <p>At about twenty past nine I took Sahib his haldi milk. I knocked. Doctor Sahib opened the door only a little and took the tumbler from my hand. He said, &ldquo;We are nearly done, Sunita, you go.&rdquo; I could not see Sahib from the door. The room smelt like a hospital, like the spirit they put on cotton.</p>
-      <p>I watched my serial on the kitchen TV until about ten. At around quarter past ten I came into the hall to lock the front door and I heard voices from the study, low, like talking. I thought Sahib was on the phone to someone. I did not knock. I did not hear Doctor Sahib&apos;s car go, the kitchen is at the back and the TV was on.</p>
+      <p>I watched my serial on the kitchen TV until about ten. At around quarter past ten I came into the hall to lock the front door and I heard a voice from the study, low, like one person talking, on and off. I thought Sahib was on the phone to someone. I did not knock. I did not hear Doctor Sahib&apos;s car go, the kitchen is at the back and the TV was on.</p>
       <p>I slept at about quarter to eleven. Around midnight our dog Bholu barked at the back gate, two or three minutes, then stopped. I did not get up.</p>
       <p>This morning at ten past seven I took Sahib&apos;s tea to the study because his bed was not slept in. He was in his chair, cold. His glasses were in his lap. The fire was dead. I screamed and called Memsahib.</p>
       <p>Sahib always took off his watch at night and put it on the charger by his bed. He said the light kept him awake. This morning it was still on his wrist.</p>

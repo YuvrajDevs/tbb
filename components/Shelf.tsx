@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { shelf } from "@/lib/cases/hollow-pines";
-import { caseStatus } from "@/lib/progress";
+import { soloStatus } from "@/lib/game/game";
 
 export function Shelf() {
   const [status, setStatus] = useState<Record<string, string>>({});
   useEffect(() => {
     const s: Record<string, string> = {};
-    shelf.forEach((c) => c.id && (s[c.id] = caseStatus(c.id)));
+    shelf.forEach((c) => c.id && (s[c.id] = soloStatus(c.id)));
     setStatus(s);
   }, []);
 
@@ -38,7 +38,7 @@ export function Shelf() {
                 <div style={{ fontFamily: "var(--display)", fontSize: 21, lineHeight: 1.2, color: "var(--ink)" }}>{c.title}</div>
                 <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", fontFamily: "var(--type)", fontSize: 11, color: "var(--brown-deep)", letterSpacing: ".08em" }}>
                   <span>{c.genre.toUpperCase()}</span>
-                  <span>{c.status === "available" ? "FREE DEMO" : "COMING SOON"}</span>
+                  <span>{c.status === "available" ? "OPEN" : "IN PREPARATION"}</span>
                 </div>
               </div>
             </div>

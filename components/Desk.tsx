@@ -1,153 +1,167 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CaseFile, EvidenceFile, NarrationLine, Round } from "@/lib/types";
-import { useProgress, type Progress, type SuspectMark } from "@/lib/progress";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { EvidenceFile, Round } from "@/lib/types";
+import type { Game } from "@/lib/game/game";
+import { allSolved, holderOf, lastRound, score, scriptLines, sortedPlayers, type Private, type SuspectMark, type Vote } from "@/lib/game/state";
+import { speakLine, stopNarration } from "@/lib/game/narrator";
 import { FileIcon, FolderIcon, Glyph, type FolderState } from "./Icons";
 import { Evidence } from "./evidence";
 
-type Panel = null | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal";
+type Panel = null | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "players";
 
-function scriptLines(c: CaseFile, script: string): NarrationLine[] {
-  if (script === "briefing") return c.narration.briefing;
-  if (script === "accusation") return c.narration.accusation;
-  if (script === "reveal") return c.narration.reveal;
-  const n = Number(script.replace("round-", ""));
-  return c.narration.rounds[n] ?? [];
-}
-
-function speak(text: string) {
-  try {
-    const s = window.speechSynthesis;
-    if (!s) return;
-    s.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.94;
-    u.pitch = 0.82;
-    const v = s.getVoices().find((v) => /en[-_](GB|IN)/i.test(v.lang));
-    if (v) u.voice = v;
-    s.speak(u);
-  } catch {}
-}
-
-export function Desk({ c }: { c: CaseFile }) {
-  const { progress: p, update, ready } = useProgress(c.id);
-  const [folder, setFolder] = useState<number | null>(null);
+export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
+  const { c, s, priv, setPriv } = g;
+  // the folder you picked stays open until the room opens a new one
+  const [picked, setPicked] = useState<{ round: number; at: number } | null>(null);
+  const folder = picked && picked.at === s.unlocked && picked.round <= s.unlocked ? picked.round : s.unlocked;
   const [fileId, setFileId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [zoom, setZoom] = useState(1);
-  const [cpRound, setCpRound] = useState(1);
-  const openCheckpoint = (n: number) => { setCpRound(n); setPanel("checkpoint"); };
-
-  const allFiles = useMemo(() => c.rounds.flatMap((r) => r.files.map((f) => ({ ...f, round: r.number }))), [c]);
-  const openFile = allFiles.find((f) => f.id === fileId) ?? null;
-  const current = c.rounds.find((r) => r.number === p.unlocked)!;
-  const allSolved = c.rounds.every((r) => p.solved[r.number]);
-
-  useEffect(() => {
-    if (ready && folder === null) setFolder(p.unlocked);
-  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (ready && p.finishedAt) setPanel("reveal");
-  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const view = (f: EvidenceFile) => {
-    setFileId(f.id);
-    setZoom(1);
-    if (!p.viewed.includes(f.id)) update((x) => ({ ...x, viewed: [...x.viewed, f.id] }));
-  };
-
-  /* ---------- narration ---------- */
-  const lines = scriptLines(c, p.narration.script);
-  const line = lines[Math.min(p.narration.line, lines.length - 1)];
-  const lastSpoken = useRef<string>("");
-  useEffect(() => {
-    if (!ready || !p.voice || !line) return;
-    if (lastSpoken.current === line.id) return;
-    lastSpoken.current = line.id;
-    speak(line.text);
-  }, [ready, p.voice, line]);
-
-  const step = (d: number) =>
-    update((x) => {
-      const ls = scriptLines(c, x.narration.script);
-      const n = Math.max(0, Math.min(ls.length - 1, x.narration.line + d));
-      return { ...x, narration: { ...x.narration, line: n } };
-    });
-
-  /* ---------- timer ---------- */
   const [now, setNow] = useState(() => Date.now());
+
+  const current = c.rounds.find((r) => r.number === s.unlocked)!;
+  const solvedAll = allSolved(c, s);
+  const name = (id: string) => s.players[id]?.name ?? "A player";
+  const allFiles = useMemo(() => c.rounds.flatMap((r) => r.files), [c]);
+  const openFile = allFiles.find((f) => f.id === fileId) ?? null;
+
+  const [narOpen, setNarOpen] = useState(false);
+  useEffect(() => window.scrollTo(0, 0), []);
+
+  /* clock */
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
   }, []);
-  const roundStart = p.roundStartedAt[p.unlocked] ?? now;
-  const remaining = Math.max(0, current.minutes * 60 - Math.floor((now - roundStart) / 1000));
-  const timeUp = p.timerEnabled && remaining === 0 && !p.solved[p.unlocked];
 
-  /* ---------- checkpoint solve ---------- */
-  const solveRound = (r: Round, how: "correct" | "skipped") =>
-    update((x) => {
-      const next = r.number + 1;
-      const hasNext = c.rounds.some((rr) => rr.number === next);
-      return {
-        ...x,
-        solved: { ...x.solved, [r.number]: how },
-        unlocked: hasNext ? Math.max(x.unlocked, next) : x.unlocked,
-        roundStartedAt: hasNext ? { ...x.roundStartedAt, [next]: Date.now() } : x.roundStartedAt,
-        narration: { script: hasNext ? `round-${next}` : "accusation", line: 0 },
-      };
-    });
+  /* follow the room when a new folder opens */
+  const lastUnlocked = useRef(s.unlocked);
+  useEffect(() => {
+    if (s.unlocked !== lastUnlocked.current) {
+      lastUnlocked.current = s.unlocked;
+      setFileId(null);
+      setPanel((p) => (p === "checkpoint" || p === "hints" ? null : p));
+    }
+  }, [s.unlocked]);
 
-  if (!ready) return <div style={{ padding: 40 }} className="eyebrow">Opening file…</div>;
+  /* everyone sees the reveal when the accusation is made */
+  const lastFinished = useRef(s.finishedAt);
+  useEffect(() => {
+    if (s.finishedAt && s.finishedAt !== lastFinished.current) setPanel("reveal");
+    lastFinished.current = s.finishedAt;
+  }, [s.finishedAt]);
 
-  const folderState = (r: Round): FolderState => {
-    if (r.number > p.unlocked) return "locked";
-    if (folder === r.number) return "open";
-    if (r.files.some((f) => !p.viewed.includes(f.id))) return "new";
-    return "closed";
+  /* escape closes things */
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (panel) setPanel(null);
+      else setFileId(null);
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [panel]);
+
+  /* narration */
+  const lines = scriptLines(c, s.narration.script);
+  const line = lines[Math.min(s.narration.line, lines.length - 1)];
+  const spoken = useRef<string>("");
+  useEffect(() => {
+    if (!priv.voice || !line) return;
+    if (spoken.current === line.id) return;
+    spoken.current = line.id;
+    speakLine(c.id, line.id, line.text);
+  }, [priv.voice, line, c.id]);
+  useEffect(() => () => stopNarration(), []);
+
+  /* timer (frozen while the room is paused) */
+  const clock = (g.pausedAt ?? now) + g.skew;
+  const roundStart = s.roundStartedAt[s.unlocked] ?? clock;
+  const remaining = Math.max(0, current.minutes * 60 - Math.floor((clock - roundStart) / 1000));
+  const timeUp = s.phase === "play" && s.timerEnabled && remaining === 0 && !s.solved[s.unlocked];
+
+  const view = (f: EvidenceFile) => {
+    setFileId(f.id);
+    setZoom(1);
+    if (!priv.viewed.includes(f.id)) setPriv((x) => ({ ...x, viewed: [...x.viewed, f.id] }));
   };
 
-  const activeRound = c.rounds.find((r) => r.number === folder) ?? null;
+  const holder = (f: EvidenceFile) => (g.party ? holderOf(c, s, f.id, g.online) : null);
+  const canOpen = (f: EvidenceFile) => {
+    const h = holder(f);
+    return h === null || h === g.me;
+  };
+
+  const folderState = (r: Round): FolderState => {
+    if (r.number > s.unlocked) return "locked";
+    if (folder === r.number) return "open";
+    if (r.files.some((f) => canOpen(f) && !priv.viewed.includes(f.id))) return "new";
+    return "closed";
+  };
+  const activeRound = c.rounds.find((r) => r.number === folder) ?? current;
 
   return (
-    <div className="desk">
+    <div className="desk" data-unlocked={s.unlocked}>
       {/* ---------- top bar ---------- */}
       <header className="desk-top">
         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-          <Link href={`/case/${c.id}`} className="iconbtn" aria-label="Back to case cover">{Glyph.back}</Link>
+          <Link href={exitHref} className="iconbtn" aria-label="Leave the desk">{Glyph.back}</Link>
           <div style={{ minWidth: 0 }}>
-            <div className="eyebrow" style={{ fontSize: 10 }}>Case No. {c.number}</div>
-            <div style={{ fontFamily: "var(--display)", fontSize: 17, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.title}</div>
+            <div className="eyebrow" style={{ fontSize: 10 }}>
+              Case No. {c.number}
+              {g.room && <> · Room {g.room.code}</>}
+            </div>
+            <div className="desk-title">{c.title}</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {p.timerEnabled && !allSolved && (
-            <div className={`timer ${remaining < 120 ? "low" : ""}`} title={`Round ${p.unlocked} timer`}>
-              {String(Math.floor(remaining / 60)).padStart(2, "0")}:{String(remaining % 60).padStart(2, "0")}
+        <div className="desk-actions">
+          {s.timerEnabled && !solvedAll && (
+            <div className={`timer ${remaining < 120 && !g.pausedAt ? "low" : ""}`} title={`Round ${s.unlocked} timer`}>
+              {g.pausedAt ? "PAUSED" : `${String(Math.floor(remaining / 60)).padStart(2, "0")}:${String(remaining % 60).padStart(2, "0")}`}
             </div>
           )}
+          {g.party && (
+            <button className="btn sm ghost" onClick={() => setPanel("players")} aria-label="Players in the room">
+              <span className="dot" /> {g.online.filter((id) => s.players[id]).length}
+            </button>
+          )}
           <button className="btn sm ghost" onClick={() => setPanel("notebook")}>Notebook</button>
-          <button className="btn sm ghost hide-sm" onClick={() => setPanel("hints")}>Hints</button>
-          <button className="btn sm ghost hide-sm" onClick={() => setPanel("settings")}>Settings</button>
-          <button className="btn sm" disabled={!allSolved} onClick={() => setPanel(p.finishedAt ? "reveal" : "accuse")} title={allSolved ? "" : "Answer all four checkpoints first"}>
-            {p.finishedAt ? "Report" : "Accuse"}
+          <button className="btn sm ghost" onClick={() => setPanel("hints")}>Hints</button>
+          <button className="btn sm ghost hide-sm" onClick={() => setPanel("settings")} aria-label="Settings">Settings</button>
+          <button className="btn sm ghost show-sm" onClick={() => setPanel("settings")} aria-label="Settings">⋯</button>
+          <button
+            className="btn sm"
+            disabled={!solvedAll}
+            onClick={() => setPanel(s.finishedAt ? "reveal" : "accuse")}
+            title={solvedAll ? "" : `Answer all ${c.rounds.length} checkpoints first`}
+          >
+            {s.finishedAt ? "Report" : "Accuse"}
           </button>
         </div>
       </header>
 
-      {timeUp && (
-        <div className="timeup">
-          <span>Time is up for round {p.unlocked}. When you are ready, answer the checkpoint to move on.</span>
-          <button className="btn sm" onClick={() => openCheckpoint(p.unlocked)}>Checkpoint</button>
+      {g.party && g.hostAway && (
+        <div className="banner">
+          <span>The host has lost connection. The room is paused, and control passes to the next player in a few seconds.</span>
+        </div>
+      )}
+      {g.party && !g.connected && (
+        <div className="banner">
+          <span>Reconnecting to the room…</span>
+        </div>
+      )}
+      {timeUp && !g.pausedAt && (
+        <div className="banner">
+          <span>Time is up for round {s.unlocked}. When you are ready, answer the checkpoint and move on.</span>
+          <button className="btn sm" onClick={() => setPanel("checkpoint")}>Checkpoint</button>
         </div>
       )}
 
       <div className={`desk-body ${openFile ? "has-file" : ""}`}>
-        {/* ---------- folders + file list ---------- */}
+        {/* ---------- folders + files ---------- */}
         <section className="desk-left">
           <div className="folders">
             {c.rounds.map((r) => {
@@ -156,95 +170,98 @@ export function Desk({ c }: { c: CaseFile }) {
                 <button
                   key={r.number}
                   className={`folder ${folder === r.number ? "sel" : ""}`}
-                  onClick={() => st !== "locked" && (setFolder(r.number), setFileId(null))}
+                  onClick={() => {
+                    if (st === "locked") return;
+                    setPicked({ round: r.number, at: s.unlocked });
+                    setFileId(null);
+                  }}
                   aria-disabled={st === "locked"}
                 >
-                  <FolderIcon state={st} size={74} label={`ENV. ${r.number}`} />
+                  <FolderIcon state={st} size={64} label={`ENV. ${r.number}`} />
                   <div className="folder-label">
                     <span>Round {r.number}</span>
                     <span className="t">{st === "locked" ? "Sealed" : r.title}</span>
                   </div>
-                  {p.solved[r.number] && <span className="tick">{p.solved[r.number] === "correct" ? "SOLVED" : "SKIPPED"}</span>}
+                  {s.solved[r.number] && <span className="tick">{s.solved[r.number] === "correct" ? "SOLVED" : "SKIPPED"}</span>}
                 </button>
               );
             })}
           </div>
 
-          {activeRound && (
-            <div className="files">
-              <div className="files-head">
-                <div>
-                  <div className="eyebrow">{activeRound.envelope} · {activeRound.files.length} files</div>
-                  <div style={{ fontFamily: "var(--display)", fontSize: 20, marginTop: 2 }}>Round {activeRound.number} — {activeRound.title}</div>
+          <div className="files">
+            <div className="files-head">
+              <div>
+                <div className="eyebrow">
+                  {activeRound.envelope} · {activeRound.files.length} files
+                  {g.party && s.mode === "split" && " · split"}
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <button className={`iconbtn ${layout === "list" ? "on" : ""}`} onClick={() => setLayout("list")} aria-label="List view">{Glyph.list}</button>
-                  <button className={`iconbtn ${layout === "grid" ? "on" : ""}`} onClick={() => setLayout("grid")} aria-label="Grid view">{Glyph.grid}</button>
-                </div>
+                <div style={{ fontFamily: "var(--display)", fontSize: 20, marginTop: 2 }}>Round {activeRound.number} — {activeRound.title}</div>
               </div>
-              {layout === "list" ? (
-                <table className="filetable">
-                  <thead>
-                    <tr><th style={{ width: 40 }} /><th>Name</th><th className="hide-sm">Date</th><th style={{ width: 84 }}>Tag</th></tr>
-                  </thead>
-                  <tbody>
-                    {activeRound.files.map((f) => {
-                      const starred = p.starred.includes(f.id);
-                      return (
-                        <tr key={f.id} className={fileId === f.id ? "sel" : ""} onClick={() => view(f)}>
-                          <td><FileIcon type={f.type} size={20} /></td>
-                          <td>
-                            <span className="ex">Exhibit {f.exhibit} — </span>
-                            {f.name}
-                          </td>
-                          <td className="hide-sm mono-cell">{f.date}</td>
-                          <td>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className={`iconbtn ${layout === "list" ? "on" : ""}`} onClick={() => setLayout("list")} aria-label="List view">{Glyph.list}</button>
+                <button className={`iconbtn ${layout === "grid" ? "on" : ""}`} onClick={() => setLayout("grid")} aria-label="Grid view">{Glyph.grid}</button>
+              </div>
+            </div>
+            {layout === "list" ? (
+              <table className="filetable">
+                <thead>
+                  <tr><th style={{ width: 36 }} /><th>Name</th><th className="hide-sm">Date</th><th style={{ width: 92 }}>Tag</th></tr>
+                </thead>
+                <tbody>
+                  {activeRound.files.map((f) => {
+                    const ok = canOpen(f);
+                    const h = holder(f);
+                    const starred = priv.starred.includes(f.id);
+                    return (
+                      <tr key={f.id} className={`${fileId === f.id ? "sel" : ""} ${ok ? "" : "held"}`} onClick={() => ok && view(f)}>
+                        <td><FileIcon type={f.type} size={20} /></td>
+                        <td>
+                          <span className="ex">Exhibit {f.exhibit} — </span>
+                          {f.name}
+                          {!ok && h && <span className="heldby">Held by {name(h)} — ask them to read it out</span>}
+                        </td>
+                        <td className="hide-sm mono-cell">{f.date}</td>
+                        <td>
+                          {ok && (
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                               <button
                                 className="star"
                                 aria-label={starred ? "Unstar" : "Star"}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  update((x) => ({ ...x, starred: starred ? x.starred.filter((s) => s !== f.id) : [...x.starred, f.id] }));
+                                  setPriv((x) => ({ ...x, starred: starred ? x.starred.filter((id) => id !== f.id) : [...x.starred, f.id] }));
                                 }}
                               >
                                 {Glyph.star(starred)}
                               </button>
-                              {!p.viewed.includes(f.id) ? <span className="tag new">New</span> : <span className="tag">Viewed</span>}
+                              {priv.viewed.includes(f.id) ? <span className="tag">Viewed</span> : <span className="tag new">New</span>}
                             </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="filegrid">
-                  {activeRound.files.map((f) => (
-                    <button key={f.id} className={`filecard ${fileId === f.id ? "sel" : ""}`} onClick={() => view(f)}>
-                      <FileIcon type={f.type} size={38} />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="filegrid">
+                {activeRound.files.map((f) => {
+                  const ok = canOpen(f);
+                  const h = holder(f);
+                  return (
+                    <button key={f.id} className={`filecard ${fileId === f.id ? "sel" : ""} ${ok ? "" : "held"}`} onClick={() => ok && view(f)} disabled={!ok}>
+                      <FileIcon type={f.type} size={36} />
                       <span className="ex">Exhibit {f.exhibit}</span>
                       <span className="nm">{f.name}</span>
-                      {!p.viewed.includes(f.id) && <span className="tag new">New</span>}
+                      {!ok && h && <span className="heldby">Held by {name(h)}</span>}
+                      {ok && !priv.viewed.includes(f.id) && <span className="tag new">New</span>}
                     </button>
-                  ))}
-                </div>
-              )}
-              <div className="checkpoint-strip">
-                {p.solved[activeRound.number] ? (
-                  <span className="muted-dark">Checkpoint {p.solved[activeRound.number] === "correct" ? "answered" : "skipped"} · {activeRound.checkpoint.question}</span>
-                ) : (
-                  <>
-                    <span>
-                      <span className="eyebrow" style={{ display: "block" }}>Checkpoint</span>
-                      {activeRound.checkpoint.question}
-                    </span>
-                    <button className="btn primary sm" onClick={() => openCheckpoint(activeRound.number)}>Answer</button>
-                  </>
-                )}
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+            <CheckpointStrip g={g} round={activeRound} onOpen={() => setPanel("checkpoint")} />
+          </div>
         </section>
 
         {/* ---------- viewer ---------- */}
@@ -264,7 +281,7 @@ export function Desk({ c }: { c: CaseFile }) {
               </div>
               <div className="viewer-scroll">
                 <div style={{ zoom } as React.CSSProperties}>
-                  <Evidence file={openFile} />
+                  {canOpen(openFile) ? <Evidence file={openFile} /> : <p className="muted-dark">This file is now held by another player.</p>}
                 </div>
               </div>
             </div>
@@ -282,66 +299,56 @@ export function Desk({ c }: { c: CaseFile }) {
       {/* ---------- narration bar ---------- */}
       {line && (
         <footer className="narration">
-          <div className="nar-id">{line.id}</div>
-          <div className="nar-text">{line.text}</div>
-          <div className="nar-ctl">
-            <button className="iconbtn" onClick={() => step(-1)} disabled={p.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
-            <button className="iconbtn" onClick={() => speak(line.text)} aria-label="Replay line">{Glyph.replay}</button>
-            <button
-              className={`iconbtn ${p.voice ? "on" : ""}`}
-              onClick={() => {
-                if (p.voice) try { window.speechSynthesis.cancel(); } catch {}
-                lastSpoken.current = "";
-                update((x) => ({ ...x, voice: !x.voice }));
-              }}
-              aria-label="Narrator voice"
-            >
-              {p.voice ? Glyph.voiceOn : Glyph.voiceOff}
-            </button>
-            <button className="iconbtn" onClick={() => step(1)} disabled={p.narration.line >= lines.length - 1} aria-label="Next line">{Glyph.next}</button>
-          </div>
           <div className="nar-prog">
-            {lines.map((_, i) => <span key={i} className={i <= p.narration.line ? "on" : ""} />)}
+            {lines.map((_, i) => <span key={i} className={i <= s.narration.line ? "on" : ""} />)}
+          </div>
+          <div className="nar-id">{line.id}</div>
+          <div className={`nar-text ${narOpen ? "open" : ""}`} onClick={() => setNarOpen((o) => !o)}>{line.text}</div>
+          <div className="nar-ctl">
+            {g.isHost && (
+              <button className="iconbtn" onClick={() => g.act({ t: "line", d: -1 })} disabled={s.narration.line === 0} aria-label="Previous line">{Glyph.prev}</button>
+            )}
+            <button className="iconbtn" onClick={() => speakLine(c.id, line.id, line.text)} aria-label="Replay this line on this device">{Glyph.replay}</button>
+            <button
+              className={`iconbtn ${priv.voice ? "on" : ""}`}
+              onClick={() => {
+                if (priv.voice) stopNarration();
+                spoken.current = "";
+                setPriv((x) => ({ ...x, voice: !x.voice }));
+              }}
+              aria-label={priv.voice ? "Turn narrator voice off" : "Turn narrator voice on"}
+            >
+              {priv.voice ? Glyph.voiceOn : Glyph.voiceOff}
+            </button>
+            {g.isHost && (
+              <button className="iconbtn" onClick={() => g.act({ t: "line", d: 1 })} disabled={s.narration.line >= lines.length - 1} aria-label="Next line">{Glyph.next}</button>
+            )}
           </div>
         </footer>
       )}
 
       {/* ---------- panels ---------- */}
       {panel && (
-        <div className="overlay" onClick={() => panel !== "reveal" && setPanel(null)}>
+        <div className="overlay" onClick={() => setPanel(null)}>
           <div className={`sheet ${panel === "reveal" ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
-            {panel !== "reveal" && (
-              <button className="iconbtn sheet-x" onClick={() => setPanel(null)} aria-label="Close">{Glyph.close}</button>
-            )}
-            {panel === "checkpoint" && (
-              <CheckpointPanel
-                round={c.rounds.find((r) => r.number === cpRound)!}
-                p={p}
-                onWrong={(n) => update((x) => ({ ...x, wrongTries: { ...x.wrongTries, [n]: (x.wrongTries[n] ?? 0) + 1 } }))}
-                onSolve={(r, how) => {
-                  solveRound(r, how);
-                  const next = r.number + 1;
-                  if (c.rounds.some((rr) => rr.number === next)) {
-                    setFolder(next);
-                    setFileId(null);
-                  }
-                }}
-                onClose={() => setPanel(null)}
-              />
-            )}
-            {panel === "hints" && <HintsPanel round={current} used={p.hintsUsed[current.number] ?? 0} onUse={() => update((x) => ({ ...x, hintsUsed: { ...x.hintsUsed, [current.number]: Math.min(3, (x.hintsUsed[current.number] ?? 0) + 1) } }))} />}
-            {panel === "notebook" && <NotebookPanel c={c} p={p} update={update} />}
-            {panel === "settings" && <SettingsPanel p={p} update={update} />}
-            {panel === "accuse" && (
-              <AccusePanel
-                c={c}
-                onSubmit={(a) => {
-                  update((x) => ({ ...x, accusation: a, finishedAt: Date.now(), narration: { script: "reveal", line: 0 } }));
-                  setPanel("reveal");
+            <button className="iconbtn sheet-x" onClick={() => setPanel(null)} aria-label="Close">{Glyph.close}</button>
+            {panel === "checkpoint" && <CheckpointPanel g={g} round={current} onClose={() => setPanel(null)} />}
+            {panel === "hints" && (
+              <HintsPanel
+                round={current}
+                used={priv.hintsUsed[current.number] ?? 0}
+                onUse={() => {
+                  if ((priv.hintsUsed[current.number] ?? 0) >= 3) return;
+                  setPriv((x) => ({ ...x, hintsUsed: { ...x.hintsUsed, [current.number]: (x.hintsUsed[current.number] ?? 0) + 1 } }));
+                  g.act({ t: "hint" });
                 }}
               />
             )}
-            {panel === "reveal" && <RevealPanel c={c} p={p} onClose={() => setPanel(null)} />}
+            {panel === "notebook" && <NotebookPanel g={g} />}
+            {panel === "settings" && <SettingsPanel g={g} />}
+            {panel === "players" && <PlayersPanel g={g} />}
+            {panel === "accuse" && <AccusePanel g={g} />}
+            {panel === "reveal" && <RevealPanel g={g} onClose={() => setPanel(null)} />}
           </div>
         </div>
       )}
@@ -351,62 +358,99 @@ export function Desk({ c }: { c: CaseFile }) {
 
 /* =========================================================== */
 
-function CheckpointPanel({ round, p, onWrong, onSolve, onClose }: { round: Round; p: Progress; onWrong: (n: number) => void; onSolve: (r: Round, how: "correct" | "skipped") => void; onClose: () => void }) {
-  const [pick, setPick] = useState<string | null>(null);
-  const [state, setState] = useState<"ask" | "wrong" | "right" | "skipped">(p.solved[round.number] ? "right" : "ask");
-  const tries = p.wrongTries[round.number] ?? 0;
-  const ans = round.checkpoint.choices.find((c) => c.id === round.checkpoint.answer)!;
+function CheckpointStrip({ g, round, onOpen }: { g: Game; round: Round; onOpen: () => void }) {
+  const { s, c } = g;
+  const solved = s.solved[round.number];
+  const isCurrent = round.number === s.unlocked;
+  const hasNext = c.rounds.some((r) => r.number === round.number + 1);
+  if (solved) {
+    return (
+      <div className="checkpoint-strip">
+        <span>
+          <span className="eyebrow" style={{ display: "block" }}>Checkpoint {solved === "correct" ? "answered" : "skipped"}</span>
+          {round.checkpoint.question}
+        </span>
+        {isCurrent && hasNext &&
+          (g.isHost ? (
+            <button className="btn primary sm" onClick={() => g.act({ t: "unlock" })}>Open folder {round.number + 1}{g.party ? " for everyone" : ""}</button>
+          ) : (
+            <span className="muted-dark" style={{ fontSize: 14 }}>Waiting for the host to open folder {round.number + 1}</span>
+          ))}
+        {isCurrent && !hasNext && !s.finishedAt && <span className="muted-dark" style={{ fontSize: 14 }}>Make your accusation when ready</span>}
+      </div>
+    );
+  }
+  return (
+    <div className="checkpoint-strip">
+      <span>
+        <span className="eyebrow" style={{ display: "block" }}>Checkpoint</span>
+        {round.checkpoint.question}
+      </span>
+      <button className="btn primary sm" onClick={onOpen}>{g.isHost ? "Answer" : "View"}</button>
+    </div>
+  );
+}
 
-  if (round.number > p.unlocked) return null;
+function CheckpointPanel({ g, round, onClose }: { g: Game; round: Round; onClose: () => void }) {
+  const { s, c } = g;
+  const [pick, setPick] = useState<string | null>(null);
+  const solved = s.solved[round.number];
+  const tries = s.wrongTries[round.number] ?? 0;
+  const ans = round.checkpoint.choices.find((ch) => ch.id === round.checkpoint.answer)!;
+  const last = s.lastAnswer && s.lastAnswer.round === round.number ? s.lastAnswer : null;
+  const hasNext = c.rounds.some((r) => r.number === round.number + 1);
+  const isLast = round.number === lastRound(c);
 
   return (
     <div>
       <div className="eyebrow">Checkpoint · Round {round.number}</div>
       <h2 className="sheet-h">{round.checkpoint.question}</h2>
-      {state === "right" || state === "skipped" ? (
+      {solved ? (
         <div>
           <div className="answer-box">
-            <span className="stamp" style={{ transform: "rotate(-3deg)" }}>{state === "right" ? "Correct" : "Answer shown"}</span>
+            <span className="stamp">{solved === "correct" ? "Correct" : "Answer shown"}</span>
             <p style={{ margin: "14px 0 6px", fontFamily: "var(--display)", fontSize: 19 }}>{ans.label}</p>
             <p style={{ margin: 0, color: "var(--text-2)" }}>{round.checkpoint.explanation}</p>
           </div>
-          <button className="btn primary" style={{ marginTop: 18 }} onClick={onClose}>
-            {round.number < 4 ? `Open folder ${round.number + 1}` : "Back to the desk"}
-          </button>
+          <div style={{ marginTop: 18, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {hasNext && s.unlocked === round.number ? (
+              g.isHost ? (
+                <button className="btn primary" onClick={() => { g.act({ t: "unlock" }); onClose(); }}>
+                  Open folder {round.number + 1}{g.party ? " for everyone" : ""}
+                </button>
+              ) : (
+                <span className="muted-dark">Waiting for the host to open folder {round.number + 1}.</span>
+              )
+            ) : (
+              <button className="btn primary" onClick={onClose}>Back to the desk</button>
+            )}
+            {isLast && <span className="muted-dark">All {c.rounds.length} checkpoints done. Make your accusation when ready.</span>}
+          </div>
         </div>
       ) : (
         <>
+          {!g.isHost && <p className="muted-dark" style={{ marginTop: -6 }}>Talk it through together. The host submits the room&apos;s answer.</p>}
           <div className="choices">
             {round.checkpoint.choices.map((ch) => (
-              <label key={ch.id} className={`choice ${pick === ch.id ? "on" : ""}`}>
-                <input type="radio" name="cp" checked={pick === ch.id} onChange={() => { setPick(ch.id); setState("ask"); }} />
+              <label key={ch.id} className={`choice ${pick === ch.id ? "on" : ""} ${last && !last.correct && last.choice === ch.id ? "wrong" : ""} ${g.isHost ? "" : "readonly"}`}>
+                <input type="radio" name="cp" checked={pick === ch.id} disabled={!g.isHost} onChange={() => setPick(ch.id)} />
                 <span>{ch.label}</span>
               </label>
             ))}
           </div>
-          {state === "wrong" && <p className="lookagain">Look again.</p>}
+          {last && !last.correct && <p className="lookagain">Look again.</p>}
           <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap", alignItems: "center" }}>
-            <button
-              className="btn primary"
-              disabled={!pick}
-              onClick={() => {
-                if (pick === round.checkpoint.answer) {
-                  setState("right");
-                  onSolve(round, "correct");
-                } else {
-                  setState("wrong");
-                  onWrong(round.number);
-                }
-              }}
-            >
-              Submit answer
-            </button>
-            {tries >= 3 && (
-              <button className="btn" onClick={() => { setState("skipped"); onSolve(round, "skipped"); }}>
-                Skip and show answer
+            {g.isHost && (
+              <button className="btn primary" disabled={!pick} onClick={() => pick && g.act({ t: "answer", round: round.number, choice: pick })}>
+                Submit answer
               </button>
             )}
-            <span className="muted-dark" style={{ fontSize: 14 }}>{tries > 0 ? `${tries} wrong ${tries === 1 ? "try" : "tries"}${tries < 3 ? ` · skip after 3` : ""}` : "No penalty for wrong answers"}</span>
+            {g.isHost && tries >= 3 && (
+              <button className="btn" onClick={() => g.act({ t: "skip", round: round.number })}>Skip and show answer</button>
+            )}
+            <span className="muted-dark" style={{ fontSize: 14 }}>
+              {tries > 0 ? `${tries} wrong ${tries === 1 ? "try" : "tries"}${tries < 3 ? " · you can skip after 3" : ""}` : "No penalty for wrong answers"}
+            </span>
           </div>
         </>
       )}
@@ -420,12 +464,12 @@ function HintsPanel({ round, used, onUse }: { round: Round; used: number; onUse:
     <div>
       <div className="eyebrow">Hints · Round {round.number}</div>
       <h2 className="sheet-h">{round.checkpoint.question}</h2>
-      <p className="muted-dark" style={{ marginTop: -4 }}>Hints are private and never name the killer. Your report card will show how many you used.</p>
+      <p className="muted-dark" style={{ marginTop: -4 }}>Hints show only on this device and never name the killer. The report card counts them.</p>
       <ol className="hints">
         {round.hints.map((h, i) => (
           <li key={i} className={i < used ? "shown" : ""}>
             <div className="eyebrow">{names[i]}</div>
-            {i < used ? <p>{h}</p> : i === used ? <button className="btn sm" onClick={onUse}>Reveal hint {i + 1}</button> : <p className="muted-dark">Sealed</p>}
+            {i < used ? <p>{h}</p> : i === used ? <button className="btn sm" onClick={onUse} style={{ marginTop: 8 }}>Reveal hint {i + 1}</button> : <p className="muted-dark">Sealed</p>}
           </li>
         ))}
       </ol>
@@ -433,23 +477,20 @@ function HintsPanel({ round, used, onUse }: { round: Round; used: number; onUse:
   );
 }
 
-function NotebookPanel({ c, p, update }: { c: CaseFile; p: Progress; update: (fn: (p: Progress) => Progress) => void }) {
+function NotebookPanel({ g }: { g: Game }) {
+  const { c, priv, setPriv } = g;
   const cycle: SuspectMark[] = ["none", "suspicious", "cleared"];
   return (
     <div>
-      <div className="eyebrow">Notebook</div>
+      <div className="eyebrow">Notebook{g.party ? " · private to this device" : ""}</div>
       <h2 className="sheet-h">Suspects</h2>
       <div className="suspects">
-        {c.suspects.map((s) => {
-          const m = p.suspects[s.id] ?? "none";
+        {c.suspects.map((x) => {
+          const m = priv.suspects[x.id] ?? "none";
           return (
-            <button
-              key={s.id}
-              className={`suspect ${m}`}
-              onClick={() => update((x) => ({ ...x, suspects: { ...x.suspects, [s.id]: cycle[(cycle.indexOf(m) + 1) % 3] } }))}
-            >
-              <span style={{ fontFamily: "var(--display)", fontSize: 17 }}>{s.name}</span>
-              <span className="muted-dark" style={{ fontSize: 13 }}>{s.role}, {s.age} · {s.note}</span>
+            <button key={x.id} className={`suspect ${m}`} onClick={() => setPriv((p: Private) => ({ ...p, suspects: { ...p.suspects, [x.id]: cycle[(cycle.indexOf(m) + 1) % 3] } }))}>
+              <span style={{ fontFamily: "var(--display)", fontSize: 17 }}>{x.name}</span>
+              <span className="muted-dark" style={{ fontSize: 13 }}>{x.role}, {x.age} · {x.note}</span>
               <span className="mark">{m === "none" ? "Unmarked" : m === "suspicious" ? "Suspicious" : "Cleared"}</span>
             </button>
           );
@@ -457,22 +498,12 @@ function NotebookPanel({ c, p, update }: { c: CaseFile; p: Progress; update: (fn
       </div>
       <p className="muted-dark" style={{ fontSize: 13, margin: "8px 0 18px" }}>Tap a name to mark it suspicious, cleared, or unmarked.</p>
       <h2 className="sheet-h">Notes</h2>
-      <textarea
-        className="notes"
-        value={p.notes}
-        placeholder="Times, contradictions, questions…"
-        onChange={(e) => {
-          const v = e.target.value;
-          update((x) => ({ ...x, notes: v }));
-        }}
-      />
-      {p.starred.length > 0 && (
+      <textarea className="notes" value={priv.notes} placeholder="Times, contradictions, questions…" onChange={(e) => { const v = e.target.value; setPriv((x) => ({ ...x, notes: v })); }} />
+      {priv.starred.length > 0 && (
         <>
           <h2 className="sheet-h" style={{ marginTop: 18 }}>Starred exhibits</h2>
           <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-2)" }}>
-            {c.rounds.flatMap((r) => r.files).filter((f) => p.starred.includes(f.id)).map((f) => (
-              <li key={f.id}>Exhibit {f.exhibit} — {f.name}</li>
-            ))}
+            {c.rounds.flatMap((r) => r.files).filter((f) => priv.starred.includes(f.id)).map((f) => <li key={f.id}>Exhibit {f.exhibit} — {f.name}</li>)}
           </ul>
         </>
       )}
@@ -480,88 +511,153 @@ function NotebookPanel({ c, p, update }: { c: CaseFile; p: Progress; update: (fn
   );
 }
 
-function SettingsPanel({ p, update }: { p: Progress; update: (fn: (p: Progress) => Progress) => void }) {
+function SettingsPanel({ g }: { g: Game }) {
+  const { s, priv, setPriv } = g;
   return (
     <div>
       <div className="eyebrow">Settings</div>
       <h2 className="sheet-h">Table settings</h2>
-      <label className="toggle">
-        <input type="checkbox" checked={p.timerEnabled} onChange={() => update((x) => ({ ...x, timerEnabled: !x.timerEnabled }))} />
-        <span><b>Round timer.</b> A countdown for each round. When it ends you are prompted to move on; nothing is forced.</span>
+      <label className={`toggle ${g.isHost ? "" : "disabled"}`}>
+        <input type="checkbox" checked={s.timerEnabled} disabled={!g.isHost} onChange={() => g.act({ t: "setTimer", on: !s.timerEnabled })} />
+        <span>
+          <b>Round timer.</b> A countdown for each round{g.party ? ", shown on every screen" : ""}. When it ends you are prompted to move on; nothing is forced.
+          {!g.isHost && " Only the host can change this."}
+        </span>
       </label>
       <label className="toggle">
-        <input type="checkbox" checked={p.voice} onChange={() => update((x) => ({ ...x, voice: !x.voice }))} />
-        <span><b>Narrator voice.</b> Reads each line aloud using this device&apos;s voice. Captions always show.</span>
+        <input type="checkbox" checked={priv.voice} onChange={() => { if (priv.voice) stopNarration(); setPriv((x) => ({ ...x, voice: !x.voice })); }} />
+        <span><b>Narrator voice{g.party ? " on this device" : ""}.</b> Reads each line aloud. Captions always show.</span>
       </label>
     </div>
   );
 }
 
-function AccusePanel({ c, onSubmit }: { c: CaseFile; onSubmit: (a: { suspect: string; method: string; motive: string }) => void }) {
-  const [s, setS] = useState("");
-  const [m, setM] = useState("");
-  const [mo, setMo] = useState("");
-  const Group = ({ title, items, val, set }: { title: string; items: { id: string; label: string }[]; val: string; set: (v: string) => void }) => (
+function PlayersPanel({ g }: { g: Game }) {
+  const { s } = g;
+  const [copied, setCopied] = useState(false);
+  const link = typeof window !== "undefined" && g.room ? `${window.location.origin}/room/${g.room.code}` : "";
+  return (
+    <div>
+      <div className="eyebrow">Room {g.room?.code}</div>
+      <h2 className="sheet-h">Detectives at the table</h2>
+      <ul className="roster">
+        {sortedPlayers(s).map((id) => (
+          <li key={id}>
+            <span className={`dot ${g.online.includes(id) ? "" : "off"}`} />
+            <span style={{ flex: 1 }}>{s.players[id].name}{id === g.me ? " (you)" : ""}</span>
+            {id === s.hostId && <span className="tag new">Host</span>}
+            {!g.online.includes(id) && <span className="muted-dark" style={{ fontSize: 13 }}>away</span>}
+          </li>
+        ))}
+      </ul>
+      <p className="muted-dark" style={{ fontSize: 14 }}>
+        Evidence is {s.mode === "split" ? "split between players. Read your files aloud to the others." : "shared. Everyone sees every unlocked file."}
+      </p>
+      {link && (
+        <button className="btn sm" onClick={() => { navigator.clipboard?.writeText(link).then(() => setCopied(true), () => {}); }}>
+          {copied ? "Link copied" : "Copy invite link"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ChoiceGroup({ title, items, val, set, tally }: { title: string; items: { id: string; label: string }[]; val: string; set: (v: string) => void; tally?: Record<string, string[]> }) {
+  return (
     <div style={{ marginBottom: 18 }}>
       <div className="eyebrow" style={{ marginBottom: 8 }}>{title}</div>
       <div className="choices">
         {items.map((i) => (
           <label key={i.id} className={`choice ${val === i.id ? "on" : ""}`}>
             <input type="radio" name={title} checked={val === i.id} onChange={() => set(i.id)} />
-            <span>{i.label}</span>
+            <span style={{ flex: 1 }}>{i.label}</span>
+            {tally?.[i.id]?.length ? <span className="votes">{tally[i.id].join(", ")}</span> : null}
           </label>
         ))}
       </div>
     </div>
   );
+}
+
+function AccusePanel({ g }: { g: Game }) {
+  const { c, s } = g;
+  const mine = s.votes[g.me];
+  const [v, setV] = useState<Vote>(mine ?? { suspect: "", method: "", motive: "" });
+  const complete = !!(v.suspect && v.method && v.motive);
+  const tally = (k: keyof Vote) => {
+    const t: Record<string, string[]> = {};
+    Object.entries(s.votes).forEach(([id, vote]) => {
+      if (!s.players[id]) return;
+      (t[vote[k]] ??= []).push(s.players[id].name);
+    });
+    return t;
+  };
+  const voters = Object.keys(s.votes).filter((id) => s.players[id]).length;
+
+  if (s.finishedAt) return <p>The accusation has been made.</p>;
+
   return (
     <div>
       <div className="eyebrow">Final report</div>
       <h2 className="sheet-h">The accusation</h2>
-      <p className="muted-dark" style={{ marginTop: -4 }}>{c.narration.accusation[0].text} There is no second chance.</p>
-      <Group title="Who" items={c.suspects.map((x) => ({ id: x.id, label: `${x.name} — ${x.role}` }))} val={s} set={setS} />
-      <Group title="How" items={c.accusation.methods} val={m} set={setM} />
-      <Group title="Why" items={c.accusation.motives} val={mo} set={setMo} />
-      <button className="btn primary" disabled={!s || !m || !mo} onClick={() => onSubmit({ suspect: s, method: m, motive: mo })}>
-        Submit and close the file
-      </button>
+      <p className="muted-dark" style={{ marginTop: -4 }}>
+        {c.narration.accusation[0].text} There is no second chance.
+        {g.party && " Everyone votes. The host submits the room's answer."}
+      </p>
+      <ChoiceGroup title="Who" items={c.suspects.map((x) => ({ id: x.id, label: `${x.name} — ${x.role}` }))} val={v.suspect} set={(x) => setV({ ...v, suspect: x })} tally={g.party ? tally("suspect") : undefined} />
+      <ChoiceGroup title="How" items={c.accusation.methods} val={v.method} set={(x) => setV({ ...v, method: x })} tally={g.party ? tally("method") : undefined} />
+      <ChoiceGroup title="Why" items={c.accusation.motives} val={v.motive} set={(x) => setV({ ...v, motive: x })} tally={g.party ? tally("motive") : undefined} />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        {g.party && (
+          <button className="btn" disabled={!complete} onClick={() => g.act({ t: "vote", vote: v })}>
+            {mine ? "Update my vote" : "Cast my vote"}
+          </button>
+        )}
+        {g.isHost && (
+          <button className="btn primary" disabled={!complete} onClick={() => g.act({ t: "accuse", vote: v })}>
+            {g.party ? "Submit the room's accusation" : "Submit and close the file"}
+          </button>
+        )}
+        {g.party && <span className="muted-dark" style={{ fontSize: 14 }}>{voters} of {Object.keys(s.players).length} voted</span>}
+      </div>
     </div>
   );
 }
 
-function RevealPanel({ c, p, onClose }: { c: CaseFile; p: Progress; onClose: () => void }) {
-  const [i, setI] = useState(0);
-  const a = p.accusation;
+function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
+  const { c, s } = g;
   const lines = c.narration.reveal;
-  const done = i >= lines.length;
-  const score = a ? [a.suspect === c.solution.suspect, a.method === c.solution.method, a.motive === c.solution.motive] : [false, false, false];
-  const right = score.filter(Boolean).length;
-  const verdict = right === 3 ? "Case solved" : score[0] ? "Right suspect, wrong story" : "Case unsolved";
-  const mins = p.finishedAt && p.startedAt ? Math.round((p.finishedAt - p.startedAt) / 60000) : 0;
-  const hints = Object.values(p.hintsUsed).reduce((s, n) => s + n, 0);
-  const skipped = Object.values(p.solved).filter((v) => v === "skipped").length;
-  const suspect = c.suspects.find((s) => s.id === a?.suspect);
+  const step = s.revealStep;
+  if (!s.finishedAt) return null;
 
-  const next = useCallback(() => setI((x) => x + 1), []);
-  useEffect(() => {
-    if (!done && p.voice) speak(lines[i].text);
-  }, [i, done, p.voice, lines]);
-
-  if (!done) {
+  if (step < lines.length) {
     return (
       <div className="reveal">
-        <div className="eyebrow">The reveal · {lines[i].id}</div>
-        <p className="reveal-line">{lines[i].text}</p>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26 }}>
-          <div className="nar-prog" style={{ position: "static" }}>{lines.map((_, k) => <span key={k} className={k <= i ? "on" : ""} />)}</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn ghost sm" onClick={() => setI(lines.length)}>Skip to report</button>
-            <button className="btn primary" onClick={next}>Continue</button>
-          </div>
+        <div className="eyebrow">The reveal · {lines[step].id}</div>
+        <p className="reveal-line">{lines[step].text}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 26, gap: 12, flexWrap: "wrap" }}>
+          <div className="reveal-prog">{lines.map((_, k) => <span key={k} className={k <= step ? "on" : ""} />)}</div>
+          {g.isHost ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn ghost sm" disabled={step === 0} onClick={() => g.act({ t: "reveal", d: -1 })}>Back</button>
+              <button className="btn ghost sm" onClick={() => g.act({ t: "reveal", d: lines.length })}>Skip to report</button>
+              <button className="btn primary" onClick={() => g.act({ t: "reveal", d: 1 })}>Continue</button>
+            </div>
+          ) : (
+            <span className="muted-dark">The host is reading the reveal.</span>
+          )}
         </div>
       </div>
     );
   }
+
+  const a = s.accusation;
+  const { parts, right, verdict } = score(c, a);
+  const mins = s.finishedAt && s.startedAt ? Math.max(0, Math.round((s.finishedAt - s.startedAt) / 60000)) : 0;
+  const hints = Object.values(s.hints).reduce((t, n) => t + n, 0);
+  const skipped = Object.values(s.solved).filter((x) => x === "skipped").length;
+  const suspect = c.suspects.find((x) => x.id === a?.suspect);
+  const real = c.suspects.find((x) => x.id === c.solution.suspect)!;
 
   return (
     <div>
@@ -576,27 +672,37 @@ function RevealPanel({ c, p, onClose }: { c: CaseFile; p: Progress; onClose: () 
         <hr className="double" />
         <table className="grid" style={{ fontSize: 13.5 }}>
           <tbody>
-            <tr><th style={{ width: "28%" }}>Your accusation</th><td>{suspect?.name ?? "—"}</td><td style={{ width: 40 }}>{score[0] ? "✓" : "✗"}</td></tr>
-            <tr><th>Method</th><td>{c.accusation.methods.find((x) => x.id === a?.method)?.label}</td><td>{score[1] ? "✓" : "✗"}</td></tr>
-            <tr><th>Motive</th><td>{c.accusation.motives.find((x) => x.id === a?.motive)?.label}</td><td>{score[2] ? "✓" : "✗"}</td></tr>
+            <tr><th style={{ width: "28%" }}>Accused</th><td>{suspect?.name ?? "—"}</td><td style={{ width: 40 }}>{parts[0] ? "✓" : "✗"}</td></tr>
+            <tr><th>Method</th><td>{c.accusation.methods.find((x) => x.id === a?.method)?.label}</td><td>{parts[1] ? "✓" : "✗"}</td></tr>
+            <tr><th>Motive</th><td>{c.accusation.motives.find((x) => x.id === a?.motive)?.label}</td><td>{parts[2] ? "✓" : "✗"}</td></tr>
           </tbody>
         </table>
+        {!parts[0] && <p style={{ margin: "10px 0 0", fontSize: 13.5 }}>The killer was <b>{real.name}</b>.</p>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginTop: 18, textAlign: "center" }}>
-          <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 17 }}>{verdict}</div></div>
+          <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 16 }}>{verdict}</div></div>
           <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
-          <div><div className="small muted">HINTS USED</div><div className="serif" style={{ fontSize: 17 }}>{hints} of 12</div></div>
-          <div><div className="small muted">CHECKPOINTS</div><div className="serif" style={{ fontSize: 17 }}>{4 - skipped} of 4 unaided</div></div>
+          <div><div className="small muted">HINTS USED</div><div className="serif" style={{ fontSize: 17 }}>{hints}</div></div>
+          <div><div className="small muted">CHECKPOINTS</div><div className="serif" style={{ fontSize: 17 }}>{c.rounds.length - skipped} of {c.rounds.length} unaided</div></div>
         </div>
+        {g.party && Object.keys(s.votes).length > 0 && (
+          <>
+            <hr className="thin" />
+            <div className="serif" style={{ fontWeight: 700, marginBottom: 6 }}>How the table voted</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13.5 }}>
+              {Object.entries(s.votes).filter(([id]) => s.players[id]).map(([id, vote]) => (
+                <li key={id}>{s.players[id].name}: {c.suspects.find((x) => x.id === vote.suspect)?.name} {vote.suspect === c.solution.suspect ? "✓" : "✗"}</li>
+              ))}
+            </ul>
+          </>
+        )}
         <hr className="thin" />
         <div className="serif" style={{ fontWeight: 700, marginBottom: 6 }}>The clues that proved it</div>
         <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13.5 }}>
-          {c.solution.proofs.map((pr, k) => (
-            <li key={k} style={{ margin: "3px 0" }}>{pr.clue} <span className="muted">(Exh. {pr.exhibit})</span></li>
-          ))}
+          {c.solution.proofs.map((pr, k) => <li key={k} style={{ margin: "3px 0" }}>{pr.clue} <span className="muted">(Exh. {pr.exhibit})</span></li>)}
         </ol>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
-        <button className="btn" onClick={() => setI(0)}>Replay the reveal</button>
+        {g.isHost && <button className="btn" onClick={() => g.act({ t: "reveal", d: -lines.length })}>Replay the reveal</button>}
         <button className="btn" onClick={onClose}>Back to the evidence</button>
         <Link className="btn ghost" href="/">Case archive</Link>
       </div>

@@ -1,4 +1,5 @@
 import { F, Paper, Q, Stamp, StatementPaper } from "./parts";
+import { ImageSlot } from "../Media";
 
 export function MeeraStatement() {
   return (
@@ -24,6 +25,7 @@ export function MeeraStatement() {
       <Q q="Had your husband been worried about anything recently?">For about two weeks he had been working late in the study over papers. When I asked, he said, &ldquo;Trust business. Nothing for you to worry about.&rdquo;</Q>
       <Q q="Do you know of any letters or appointments he had for the coming week?">No. My husband did not discuss business with me. I know of no letters.</Q>
       <Q q="Do you know the terms of his will?">I believe I am a beneficiary, with Arjun. I have never read it.</Q>
+      <Q q="Did you leave your room at any time after half past nine?">No. The tablet knocks me out. I did not wake until morning.</Q>
     </StatementPaper>
   );
 }
@@ -74,7 +76,8 @@ export function KapoorStatement() {
       <p>I have known Vikram for thirty years and been his physician for twenty. I am a trustee of the Rathore Charitable Trust and Medical Director of Rathore Memorial Hospital.</p>
       <p>Every Saturday evening I visit Hollow Pines to check his blood pressure and give his Vitamin B12 injection, which he has had weekly since 2021 for a deficiency.</p>
       <p>Yesterday I arrived at about ten minutes to nine. Vikram was a little agitated after a disagreement with Arjun but settled quickly. His BP was 142/88, which I entered on his watch app for him. I gave Inj. Methylcobalamin 1000 mcg intramuscular, in the <u>left deltoid</u>, at about five past nine.</p>
-      <p>We then sat and talked about hospital matters — the dialysis wing, a staffing problem. He was in good spirits. When I left he was in his armchair with a book. I let myself out at <b>about 9.40 pm</b>. I am certain, because I was home in time for the ten o&apos;clock news. My wife Nisha can confirm this.</p>
+      <p>We then sat and talked about hospital matters — the dialysis wing, a staffing problem. He was in good spirits. When I left he was in his armchair with a book. I let myself out at <b>about 9.40 pm</b>. I am certain, because I was home in time for the ten o&apos;clock news. My wife Sunanda can confirm this.</p>
+      <p>Vikram&apos;s heart rhythm was first found in 2014, when he spent nine days in our ICU. Meera nursed him through it — she was one of our ICU sisters in those days. That is how they met.</p>
       <p>This morning Meera telephoned at about 7.15. I found Vikram dead in the chair. In my experience, from the feel of the body and the state of the rigor, death occurred around 1 am. It was a cardiac death. He had a weak heart for many years.</p>
       <Q q="Did you give the deceased any other injection or medicine?">No. Only the B12, as always.</Q>
       <Q q="Did he mention any appointment or concern for the coming week?">No. Nothing at all.</Q>
@@ -110,16 +113,16 @@ export function KabirStatement() {
 
 export function CctvLog() {
   const rows: [string, string, string, string, string][] = [
-    ["10-10-2026", "17:05:41", "IN", "Scooter, black", "UK07-S-2291 (A. Rathore)"],
+    ["10-10-2026", "17:23:41", "IN", "Scooter, black", "UK07-S-2291 (A. Rathore)"],
     ["10-10-2026", "18:31:02", "OUT", "Pedestrian", "Milk delivery (Doodhwala)"],
     ["10-10-2026", "19:12:55", "IN", "Pedestrian", "Mohan Lal, chowkidar, night duty"],
-    ["10-10-2026", "20:52:14", "IN", "Car, silver sedan", "UK07-CK-0059 (Dr. A. Kapoor)"],
-    ["10-10-2026", "21:03:20", "—", "Motion", "Animal (dog) — no entry"],
+    ["10-10-2026", "21:10:14", "IN", "Car, silver sedan", "UK07-CK-0059 (Dr. A. Kapoor)"],
+    ["10-10-2026", "21:21:20", "—", "Motion", "Animal (dog) — no entry"],
     ["10-10-2026", "21:58:37", "OUT", "Car, silver sedan", "UK07-CK-0059 (Dr. A. Kapoor)"],
-    ["10-10-2026", "23:02:10", "—", "Gate closed", "Mohan Lal, rounds"],
+    ["10-10-2026", "23:20:10", "—", "Gate closed", "Mohan Lal, rounds"],
     ["11-10-2026", "06:40:18", "—", "Gate opened", "Mohan Lal"],
-    ["11-10-2026", "07:38:50", "IN", "Car, silver sedan", "UK07-CK-0059 (Dr. A. Kapoor)"],
-    ["11-10-2026", "08:03:12", "IN", "Police Gypsy", "UK07-GA-1123"],
+    ["11-10-2026", "07:56:50", "IN", "Car, silver sedan", "UK07-CK-0059 (Dr. A. Kapoor)"],
+    ["11-10-2026", "08:21:12", "IN", "Police Gypsy", "UK07-GA-1123"]
   ];
   return (
     <Paper exhibit={12} envelope={2} variant="white" width={860}>
@@ -131,7 +134,7 @@ export function CctvLog() {
             <div>range: 10-10-2026 17:00 → 11-10-2026 08:30</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div>NVR clock checked against NTP: drift +00:00:02</div>
+            <div>NVR time source: manual (set 09-10-2026 16:52)</div>
             <div>Examined: SI P. Joshi, 11-10-2026 13:15</div>
           </div>
         </div>
@@ -172,57 +175,16 @@ export function CctvStill() {
         <span>FRAME 21:58:37.12</span>
       </div>
       <div style={{ background: "#000", padding: 6 }}>
-        <svg viewBox="0 0 800 450" width="100%" style={{ display: "block" }} role="img" aria-label="Grainy night-vision CCTV frame of a car leaving the main gate">
-          <defs>
-            <filter id="cctvgrain">
-              <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="7" />
-              <feColorMatrix values="0 0 0 0 .8  0 0 0 0 .8  0 0 0 0 .8  0 0 0 .35 0" />
-            </filter>
-            <radialGradient id="ir" cx="50%" cy="60%" r="70%">
-              <stop offset="0" stopColor="#6d6a64" />
-              <stop offset="1" stopColor="#141312" />
-            </radialGradient>
-            <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
-              <rect width="4" height="2" fill="rgba(0,0,0,.18)" />
-            </pattern>
-          </defs>
-          <rect width="800" height="450" fill="url(#ir)" />
-          {/* gate pillars */}
-          <rect x="560" y="80" width="60" height="290" fill="#8b8780" />
-          <rect x="550" y="70" width="80" height="16" fill="#a29e96" />
-          <rect x="40" y="80" width="60" height="290" fill="#5f5c57" />
-          {/* open gate leaf */}
-          <g stroke="#b0aca4" strokeWidth="3">
-            <line x1="620" y1="120" x2="760" y2="160" />
-            <line x1="620" y1="330" x2="760" y2="330" />
-            {[...Array(9)].map((_, i) => <line key={i} x1={630 + i * 15} y1={123 + i * 4.2} x2={630 + i * 15} y2="330" />)}
-          </g>
-          {/* road */}
-          <path d="M0 370 L800 370 L800 450 L0 450Z" fill="#3c3a37" />
-          <path d="M120 450 L330 300 L470 300 L700 450Z" fill="#4d4a46" />
-          {/* car rear */}
-          <g transform="translate(250 220)">
-            <path d="M20 40 Q40 0 110 -2 H200 Q260 0 280 40 L300 60 V140 H0 V60Z" fill="#a7a49e" />
-            <path d="M50 38 Q70 8 120 6 H190 Q240 8 252 38Z" fill="#1f1e1c" />
-            <rect x="8" y="70" width="56" height="22" fill="#fff" opacity=".95" />
-            <rect x="236" y="70" width="56" height="22" fill="#fff" opacity=".95" />
-            <rect x="100" y="98" width="100" height="26" fill="#e9e6df" stroke="#222" />
-            <text x="150" y="117" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="15" fontWeight="600" fill="#1b1611">UK07 CK 0059</text>
-            <rect x="0" y="140" width="40" height="18" fill="#141312" />
-            <rect x="260" y="140" width="40" height="18" fill="#141312" />
-          </g>
-          {/* headlight bloom */}
-          <circle cx="285" cy="300" r="40" fill="#fff" opacity=".08" />
-          <circle cx="515" cy="300" r="40" fill="#fff" opacity=".08" />
-          <rect width="800" height="450" fill="url(#scan)" />
-          <rect width="800" height="450" filter="url(#cctvgrain)" />
-          <text x="20" y="34" fontFamily="JetBrains Mono, monospace" fontSize="18" fill="#f1f1f1">10-10-2026 SAT 21:58:37</text>
-          <text x="780" y="34" textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize="18" fill="#f1f1f1">CAM1</text>
-          <text x="20" y="432" fontFamily="JetBrains Mono, monospace" fontSize="13" fill="#d0d0d0">HOLLOW PINES · IR ON · REC ●</text>
-        </svg>
+        <ImageSlot
+          file="exhibit-13-cctv-gate.jpg"
+          dark
+          ratio="16 / 9"
+          label="CCTV frame"
+          alt="Grainy night-vision frame from the gate camera: a silver Honda City seen from behind, leaving through the open main gate, plate UK07 CK 0059 readable. Burned-in text: 10-10-2026 SAT 21:58:37 CAM1."
+        />
       </div>
       <div className="small" style={{ marginTop: 12 }}>
-        Silver Honda City, reg. UK07-CK-0059, registered owner Dr. Anand Kapoor, Shanti Kunj, Kulri, Mussoorie (RTO Dehradun). Vehicle exits gate heading east towards Kulri. Driver not visible. No other vehicle or pedestrian movement at the main gate between 20:52 and 23:02.
+        Silver Honda City, reg. UK07-CK-0059, registered owner Dr. Anand Kapoor, Shanti Kunj, Kulri, Mussoorie (RTO Dehradun). Vehicle exits gate heading east towards Kulri. Driver not visible. No other vehicle or pedestrian movement at the main gate between 21:10 and 23:20 (recorder time).
       </div>
     </Paper>
   );
@@ -280,17 +242,17 @@ export function ChatPrintout() {
 }
 
 export function CallLog() {
-  const rows: [string, string, string, string, string][] = [
-    ["07-10-2026", "16:22", "Incoming", "Adv. Harish Mehta", "06:51"],
-    ["08-10-2026", "11:05", "Outgoing", "Doon Valley Co-op Bank (Trust desk)", "09:30"],
-    ["09-10-2026", "18:40", "Incoming", "Kabir Sethi", "Missed"],
-    ["09-10-2026", "19:02", "Incoming", "Kabir Sethi", "Missed"],
-    ["10-10-2026", "09:14", "Outgoing", "Adv. Harish Mehta", "04:12"],
-    ["10-10-2026", "11:30", "Incoming", "Kabir Sethi", "00:48"],
-    ["10-10-2026", "16:47", "Outgoing", "Anand (Dr.)", "01:05"],
-    ["10-10-2026", "22:05", "Incoming", "Kabir Sethi", "Missed"],
-    ["10-10-2026", "22:11", "Incoming", "Kabir Sethi", "Missed · voicemail 00:38"],
-    ["11-10-2026", "06:58", "Incoming", "+91 70172 3•••• (unknown)", "Missed"],
+  const rows: [string, string, string, string, string, string][] = [
+    ["07-10-2026", "16:22", "Incoming", "Adv. Harish Mehta", "+91 135 265 0912", "06:51"],
+    ["08-10-2026", "11:05", "Outgoing", "Doon Valley Co-op Bank (Trust desk)", "+91 135 274 0112", "09:30"],
+    ["09-10-2026", "18:40", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed"],
+    ["09-10-2026", "19:02", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed"],
+    ["10-10-2026", "09:14", "Outgoing", "Adv. Harish Mehta", "+91 135 265 0912", "04:12"],
+    ["10-10-2026", "11:30", "Incoming", "Kabir Sethi", "+91 98970 21460", "00:48"],
+    ["10-10-2026", "16:47", "Outgoing", "Anand (Dr.)", "+91 94120 51187", "01:05"],
+    ["10-10-2026", "22:05", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed"],
+    ["10-10-2026", "22:11", "Incoming", "Kabir Sethi", "+91 98970 21460", "Missed · voicemail 00:38"],
+    ["11-10-2026", "06:58", "Incoming", "(not saved)", "+91 70172 30995", "Missed"]
   ];
   return (
     <Paper exhibit={15} envelope={2} variant="white" width={800}>
@@ -304,9 +266,9 @@ export function CallLog() {
       </div>
       <hr className="double" />
       <div className="mono" style={{ overflowX: "auto" }}>
-        <table className="grid" style={{ fontSize: 12, minWidth: 560 }}>
+        <table className="grid" style={{ fontSize: 12, minWidth: 680 }}>
           <thead>
-            <tr><th>Date</th><th>Time</th><th>Type</th><th>Other party (as saved)</th><th>Duration</th></tr>
+            <tr><th>Date</th><th>Time</th><th>Type</th><th>Other party (as saved)</th><th>Number</th><th>Duration</th></tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (

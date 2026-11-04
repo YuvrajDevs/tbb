@@ -6,6 +6,7 @@ import * as R1 from "./round1";
 import * as R2 from "./round2";
 import * as R3 from "./round3";
 import * as R4 from "./round4";
+import * as R5 from "./round5";
 
 const registry: Record<string, (f: EvidenceFile) => ReactElement> = {
   "r1-memo": () => <R1.Memo />,
@@ -27,7 +28,7 @@ const registry: Record<string, (f: EvidenceFile) => ReactElement> = {
   "r3-tag": () => <R3.EvidenceTag />,
   "r3-pharmacy": () => <R3.DispensaryRegister />,
   "r3-receipt": () => <R3.BarReceipt />,
-  "r3-voicemail": (f) => <R3.Voicemail transcript={f.transcript} />,
+  "r3-voicemail": () => <R3.Voicemail />,
   "r3-diary": () => <R3.DiaryPage />,
   "r4-bank": () => <R4.BankStatement />,
   "r4-mehta": () => <R4.MehtaLetter />,
@@ -35,6 +36,13 @@ const registry: Record<string, (f: EvidenceFile) => ReactElement> = {
   "r4-email": () => <R4.KabirEmail />,
   "r4-will": () => <R4.WillExtract />,
   "r4-meera2": () => <R4.MeeraSupplementary />,
+  "r5-nvr": () => <R5.NvrReport />,
+  "r5-gatebook": () => <R5.GateRegister />,
+  "r5-sunanda": () => <R5.SunandaStatement />,
+  "r5-kapoor2": () => <R5.KapoorSecond />,
+  "r5-meeraphone": () => <R5.MeeraCallLog />,
+  "r5-service": () => <R5.ServiceCard />,
+  "r5-wedding": () => <R5.WeddingPhoto />,
 };
 
 export function Evidence({ file }: { file: EvidenceFile }) {
