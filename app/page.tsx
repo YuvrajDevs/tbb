@@ -113,10 +113,10 @@ export default function Landing() {
               <span className="stamp" style={{ fontSize: 11 }}>Confidential</span>
             </div>
             <div className="lmemo-row"><span>TO:</span><span>Assigned Detective (you)</span></div>
-            <div className="lmemo-row"><span>FROM:</span><span>E. D. Blackwood, Director</span></div>
+            <div className="lmemo-row"><span>FROM:</span><span>D. Blackwood, Director</span></div>
             <div className="lmemo-row"><span>RE:</span><span>Case No. {c.number}</span></div>
             <p className="lmemo-p">Work only from what is in the file. Hearsay, instinct and the reputations of doctors are not evidence.</p>
-            <div className="lmemo-sign">E. D. Blackwood</div>
+            <div className="lmemo-sign">D. Blackwood</div>
           </div>
           <div className="lhero-folder">
             <div className="tab" />
@@ -231,7 +231,7 @@ export default function Landing() {
       <section className="lsec wrap">
         <blockquote className="lquote">
           <p>&ldquo;Trust the inspector&apos;s instincts. Check his times.&rdquo;</p>
-          <footer>E. D. Blackwood, Director · note on File No. {c.number}</footer>
+          <footer>D. Blackwood, Director · note on File No. {c.number}</footer>
         </blockquote>
       </section>
 

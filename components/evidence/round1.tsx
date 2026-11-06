@@ -16,7 +16,7 @@ export function Memo() {
       <hr className="double" />
       <div className="serif" style={{ fontSize: 15, letterSpacing: ".3em", textAlign: "center", margin: "6px 0 14px" }}>INTERNAL MEMORANDUM</div>
       <F k="TO:" v="Assigned Detective (you)" w={70} />
-      <F k="FROM:" v="E. D. Blackwood, Director" w={70} />
+      <F k="FROM:" v="D. Blackwood, Director" w={70} />
       <F k="DATE:" v="Sunday, 11 October 2026 — 10:20 hrs" w={70} />
       <F k="RE:" v="CASE NO. 017 — Death of Shri Vikram Singh Rathore, Hollow Pines, Mussoorie" w={70} />
       <hr className="thin" />
@@ -39,7 +39,7 @@ export function Memo() {
       <p>5. Work only from what is in the file. Hearsay, instinct and the reputations of doctors are not evidence.</p>
       <div style={{ marginTop: 26, display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <Sign>E. D. Blackwood</Sign>
+          <Sign>D. Blackwood</Sign>
           <div className="small">Director</div>
         </div>
         <RoundSeal top="THE BLACKWOOD BUREAU" bottom="DEHRADUN · 1961" center="017" size={104} />
