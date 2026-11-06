@@ -572,6 +572,12 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .lclose { text-align: center; padding-top: 110px; }
 .lclose .eyebrow { margin-bottom: 4px; }
 .lclose h2 { margin-bottom: 26px; }
+.ltip { padding-top: 70px; padding-bottom: 56px; }
+.ltip-card { max-width: 620px; margin: 0 auto; text-align: center; border: 1px dashed var(--line); padding: 22px 26px; }
+.ltip-label { font-family: var(--type); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-3); margin-bottom: 10px; }
+.ltip-card p { margin: 0; color: var(--text-2); font-size: 16px; line-height: 1.6; }
+.ltip-card a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.ltip-card a:hover { color: #fff; }
 .ltype-top .stamp { white-space: nowrap; flex: none; }
 
 /* ===================== rating prompt (report card) ===================== */

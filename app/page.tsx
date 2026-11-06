@@ -64,7 +64,7 @@ const WAYS = [
 
 const FAQ = [
   ["Do we need to download anything?", "No. Cases play in the browser on a phone, tablet or computer. Party rooms work across separate devices."],
-  ["How long does a case take?", "A case can take up to an hour. Solo progress is saved on your device, so you can stop and pick it up again later."],
+  ["How long does a case take?", "A case can take up to an hour. Your progress is saved to your account, so you can stop and pick it up again later on any device."],
   ["Will the hints spoil it?", "Hints are sealed in three levels and show only on the device that asks. They never name the killer."],
   ["Are the cases real?", "No. Every character, place and document in the Bureau's files is fictional."],
 ];
@@ -257,6 +257,17 @@ export default function Landing() {
         <h2>Somebody in that house is lying to you.</h2>
         <div className="lhero-cta" style={{ justifyContent: "center" }}>
           <Link href="/cases" className="btn primary">Open the case archive</Link>
+        </div>
+      </section>
+
+      {/* ---------- tip line: ideas and feedback by Instagram DM ---------- */}
+      <section className="ltip wrap">
+        <div className="ltip-card">
+          <div className="ltip-label">The tip line</div>
+          <p>
+            Have an idea for a story, a suggestion, or feedback on a case? DM us on Instagram{" "}
+            <a href="https://www.instagram.com/theblackwoodbureau/" target="_blank" rel="noopener noreferrer">@theblackwoodbureau</a>
+          </p>
         </div>
       </section>
 
