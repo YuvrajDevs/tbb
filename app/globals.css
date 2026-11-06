@@ -481,7 +481,10 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .landing { overflow-x: hidden; }
 .lnav { position: sticky; top: 0; z-index: 30; background: rgba(15,13,11,.88); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .lnav-in { display: flex; align-items: center; justify-content: space-between; gap: 18px; height: 64px; }
-.lnav-mark { font-family: var(--type); letter-spacing: .22em; font-size: 13px; text-decoration: none; color: var(--text); white-space: nowrap; }
+.lnav-mark { font-family: var(--type); letter-spacing: .22em; font-size: 13px; text-decoration: none; color: var(--text); white-space: nowrap; display: inline-flex; align-items: center; }
+.lnav-stamp { height: 54px; width: auto; display: block; opacity: .92; }
+.lhero-stamp { position: absolute; right: 8%; bottom: 14%; width: 62%; height: auto; transform: rotate(-3deg); pointer-events: none; }
+@media (max-width: 420px) { .lnav-stamp { height: 36px; } }
 .lnav-links { display: flex; gap: 26px; }
 .lnav-links a { font-family: var(--type); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); text-decoration: none; }
 .lnav-links a:hover { color: var(--text); }

@@ -74,7 +74,10 @@ export default function Landing() {
     <div className="page landing">
       <header className="lnav">
         <div className="wrap lnav-in">
-          <Link href="/" className="lnav-mark">THE BLACKWOOD BUREAU</Link>
+          <Link href="/" className="lnav-mark" aria-label="The Blackwood Bureau, home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/stamp-light.png" alt="The Blackwood Bureau" className="lnav-stamp" />
+          </Link>
           <nav className="lnav-links" aria-label="Sections">
             <a href="#what">What we do</a>
             <a href="#how">How it works</a>
@@ -119,6 +122,8 @@ export default function Landing() {
             <div className="tab" />
             <div className="body">
               <span className="eyebrow" style={{ color: "var(--brown-deep)" }}>Case No. {c.number}</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/stamp.png" alt="" className="lhero-stamp" />
             </div>
           </div>
         </div>

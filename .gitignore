@@ -5,3 +5,6 @@ next-env.d.ts
 .DS_Store
 .env*.local
 voice-samples/
+
+# reel: marketing videos and brand exports stay local, never pushed
+reel/
