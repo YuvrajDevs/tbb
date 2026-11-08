@@ -677,3 +677,20 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 @media (prefers-reduced-motion: reduce) {
   .brief-img { animation: none; transform: scale(1.04); }
 }
+
+/* ---------- deduction grid (notebook) ---------- */
+.dgrid { display: grid; gap: 16px; }
+.dgrid-sec { display: grid; gap: 6px; }
+.dgrid-row { display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; background: none; border: 1px solid var(--line); padding: 9px 12px; color: var(--text); cursor: pointer; font: inherit; }
+.dgrid-row:hover { border-color: var(--line-2); }
+.dgrid-box { flex: none; width: 24px; height: 24px; border: 1px solid var(--line-2); display: grid; place-items: center; font-family: var(--mono); font-size: 14px; font-weight: 700; }
+.dgrid-txt { display: grid; gap: 2px; font-size: 14.5px; }
+.dgrid-sub { font-size: 12.5px; }
+.dgrid-row.out { opacity: .5; }
+.dgrid-row.out .dgrid-txt > span:first-child { text-decoration: line-through; }
+.dgrid-row.out .dgrid-box { color: #c0392b; }
+.dgrid-row.maybe .dgrid-box { color: var(--manila); border-color: var(--manila); }
+.dgrid-row.likely { border-color: var(--manila); background: rgba(212, 178, 120, .08); }
+.dgrid-row.likely .dgrid-box { background: var(--manila); color: #1a1208; border-color: var(--manila); }
+.locked-acc { display: grid; gap: 6px; border: 1px solid var(--line-2); padding: 12px 14px; margin: 4px 0 14px; font-size: 14px; }
+.locked-acc span { display: inline-block; width: 46px; font-family: var(--mono); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; color: var(--text-3); }

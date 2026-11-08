@@ -1,6 +1,6 @@
 import type { CaseFile, CaseResult, CheckResult, NarrationLine } from "../types";
 
-export type Vote = { suspect: string; method: string; motive: string };
+export type Vote = { suspect: string; method: string; motive: string; details?: Record<string, string> };
 export type Player = { name: string; joinedAt: number };
 
 /** State everyone in a room shares. In solo the one device is the host. */
@@ -67,7 +67,11 @@ export interface Private {
   chatReadAt?: number;
   /** set once the briefing has reached its last line: its photos never play again and folder 1 stays open */
   briefed?: boolean;
+  /** the deduction grid: "s:<suspect>", "m:<method>", "w:<motive>" -> mark */
+  grid?: Record<string, GridMark>;
 }
+
+export type GridMark = "out" | "maybe" | "likely";
 
 export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: true });
 

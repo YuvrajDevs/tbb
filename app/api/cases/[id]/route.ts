@@ -33,7 +33,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       break;
     case "verdict": {
       const v = (body.vote ?? {}) as Record<string, unknown>;
-      const vote: Vote = { suspect: str(v.suspect), method: str(v.method), motive: str(v.motive) };
+      const d = (v.details && typeof v.details === "object" ? v.details : {}) as Record<string, unknown>;
+      const details = Object.fromEntries(Object.entries(d).slice(0, 20).map(([k, x]) => [String(k).slice(0, 40), str(x)]));
+      const vote: Vote = { suspect: str(v.suspect), method: str(v.method), motive: str(v.motive), details };
       const r = verdict(id, vote, (body.tokens ?? {}) as Record<string, unknown>);
       if (r === "locked") return NextResponse.json({ error: "answer every checkpoint first" }, { status: 403 });
       out = r;

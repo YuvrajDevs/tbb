@@ -60,6 +60,8 @@ export interface CaseResult {
   parts: [boolean, boolean, boolean];
   right: number;
   verdict: string;
+  /** the precise questions asked after the accusation: whether each was right, and the right choice */
+  details?: { id: string; correct: boolean; answer: string }[];
 }
 
 /** what the player has (not) done when a quiet spell triggers a nudge */
@@ -98,6 +100,8 @@ export interface CaseFile {
   accusation: {
     methods: Choice[];
     motives: Choice[];
+    /** precise questions asked once who, how and why are locked; answers live on the server */
+    details?: { id: string; q: string; choices: Choice[] }[];
   };
 }
 

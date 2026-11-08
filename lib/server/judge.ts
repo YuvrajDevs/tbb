@@ -54,7 +54,7 @@ export function hint(caseId: string, round: number, level: number): HintResult |
   return { text: r.hints[level - 1], voice: voice ? withAudio(caseId, s, voice) : undefined };
 }
 
-export type Vote = { suspect: string; method: string; motive: string };
+export type Vote = { suspect: string; method: string; motive: string; details?: Record<string, string> };
 
 export function verdict(caseId: string, vote: Vote, tokens: Record<string, unknown>): CaseResult | "locked" | null {
   const s = caseSecret(caseId);
@@ -75,5 +75,6 @@ export function verdict(caseId: string, vote: Vote, tokens: Record<string, unkno
     parts,
     right,
     verdict: v,
+    details: Object.entries(s.details ?? {}).map(([id, answer]) => ({ id, answer, correct: vote.details?.[id] === answer })),
   };
 }

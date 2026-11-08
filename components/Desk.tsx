@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type SuspectMark, type Vote } from "@/lib/game/state";
+import { allSolved, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { checkAnswer, fetchHint, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
@@ -196,6 +196,10 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     else if (reachedEnd.current || s.narration.script !== "briefing") setSlideshow(false);
   }, [slideshow, briefingAtEnd, s.narration.script, priv.viewed.length]);
   const briefImage = slideshow && s.narration.script === "briefing" ? line?.image : undefined;
+  useEffect(() => {
+    if (!slideshow) return;
+    for (const l of c.narration.briefing) if (l.image) new Image().src = l.image;
+  }, [slideshow, c]);
   const spoken = useRef<string>("");
   // Continuous play: when a line finishes, the next one starts on its own (host or solo moves the
   // narration for everyone). Stops at the end of each script, e.g. at "Open folder one."
@@ -901,27 +905,70 @@ function HintsPanel({ g, round, onUse }: { g: Game; round: Round; onUse: () => P
   );
 }
 
+const GRID_NEXT: Record<string, GridMark | undefined> = { none: "out", out: "maybe", maybe: "likely", likely: undefined };
+const GRID_LABEL: Record<string, string> = { none: "", out: "✗", maybe: "?", likely: "✓" };
+/** A grid mark, falling back to the older suspect marks for games saved before the grid existed. */
+const gridMark = (priv: Private, key: string): GridMark | "none" => {
+  const m = priv.grid?.[key];
+  if (m) return m;
+  if (key.startsWith("s:")) {
+    const old = priv.suspects[key.slice(2)];
+    if (old === "suspicious") return "likely";
+    if (old === "cleared") return "out";
+  }
+  return "none";
+};
+
+function DeductionGrid({ g }: { g: Game }) {
+  const { c, priv, setPriv } = g;
+  const sections: { title: string; prefix: string; items: { id: string; label: string; sub?: string }[] }[] = [
+    { title: "Who", prefix: "s", items: c.suspects.map((x) => ({ id: x.id, label: x.name, sub: `${x.role}, ${x.age} · ${x.note}` })) },
+    { title: "How", prefix: "m", items: c.accusation.methods },
+    { title: "Why", prefix: "w", items: c.accusation.motives },
+  ];
+  const tap = (key: string) =>
+    setPriv((p: Private) => {
+      const next = GRID_NEXT[gridMark(p, key)];
+      const grid = { ...(p.grid ?? {}) };
+      if (next) grid[key] = next;
+      else delete grid[key];
+      // clearing a suspect also clears the old-style mark it may have come from
+      const suspects = key.startsWith("s:") && !next ? { ...p.suspects, [key.slice(2)]: "none" as const } : p.suspects;
+      return { ...p, grid, suspects };
+    });
+  return (
+    <div className="dgrid">
+      {sections.map((sec) => (
+        <div key={sec.prefix} className="dgrid-sec">
+          <div className="eyebrow">{sec.title}</div>
+          {sec.items.map((it) => {
+            const key = `${sec.prefix}:${it.id}`;
+            const m = gridMark(priv, key);
+            return (
+              <button key={key} className={`dgrid-row ${m}`} onClick={() => tap(key)} aria-label={`${it.label}: ${m === "none" ? "unmarked" : m === "out" ? "ruled out" : m === "maybe" ? "possible" : "likely"}`}>
+                <span className="dgrid-box">{GRID_LABEL[m]}</span>
+                <span className="dgrid-txt">
+                  <span>{it.label}</span>
+                  {it.sub && <span className="muted-dark dgrid-sub">{it.sub}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+      <p className="muted-dark" style={{ fontSize: 13, margin: "4px 0 0" }}>Tap to cycle: ✗ ruled out, ? possible, ✓ likely, then blank. The Bureau&apos;s report grades how well your grid matched the truth.</p>
+    </div>
+  );
+}
+
 function NotebookPanel({ g }: { g: Game }) {
   const { c, priv, setPriv } = g;
-  const cycle: SuspectMark[] = ["none", "suspicious", "cleared"];
   return (
     <div>
       <div className="eyebrow">Notebook{g.party ? " · private to this device" : ""}</div>
-      <h2 className="sheet-h">Suspects</h2>
-      <div className="suspects">
-        {c.suspects.map((x) => {
-          const m = priv.suspects[x.id] ?? "none";
-          return (
-            <button key={x.id} className={`suspect ${m}`} onClick={() => setPriv((p: Private) => ({ ...p, suspects: { ...p.suspects, [x.id]: cycle[(cycle.indexOf(m) + 1) % 3] } }))}>
-              <span style={{ fontFamily: "var(--display)", fontSize: 17 }}>{x.name}</span>
-              <span className="muted-dark" style={{ fontSize: 13 }}>{x.role}, {x.age} · {x.note}</span>
-              <span className="mark">{m === "none" ? "Unmarked" : m === "suspicious" ? "Suspicious" : "Cleared"}</span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="muted-dark" style={{ fontSize: 13, margin: "8px 0 18px" }}>Tap a name to mark it suspicious, cleared, or unmarked.</p>
-      <h2 className="sheet-h">Notes</h2>
+      <h2 className="sheet-h">Deduction grid</h2>
+      <DeductionGrid g={g} />
+      <h2 className="sheet-h" style={{ marginTop: 22 }}>Notes</h2>
       <textarea className="notes" value={priv.notes} placeholder="Times, contradictions, questions…" aria-label="Your notes" onChange={(e) => { const v = e.target.value; setPriv((x) => ({ ...x, notes: v })); }} />
       {priv.starred.length > 0 && (
         <>
@@ -1051,7 +1098,13 @@ function AccusePanel({ g }: { g: Game }) {
   const [v, setV] = useState<Vote>(mine ?? { suspect: "", method: "", motive: "" });
   const [confirming, setConfirming] = useState(false);
   const complete = !!(v.suspect && v.method && v.motive);
-  const tally = (k: keyof Vote) => {
+  // Once who, how and why are locked, the precise questions open. There is no going back from them,
+  // since the questions themselves say something about the case.
+  const details = c.accusation.details ?? [];
+  const [stage, setStage] = useState<"main" | "details">("main");
+  const [ans, setAns] = useState<Record<string, string>>({});
+  const detailsDone = details.every((d) => ans[d.id]);
+  const tally = (k: "suspect" | "method" | "motive") => {
     const t: Record<string, string[]> = {};
     Object.entries(s.votes).forEach(([id, vote]) => {
       if (!s.players[id]) return;
@@ -1076,8 +1129,9 @@ function AccusePanel({ g }: { g: Game }) {
         if (res.token) tokens[r.number] = res.token;
         g.act({ t: "learn", round: r.number, res });
       }
-      const result = await fetchVerdict(c.id, v, tokens);
-      g.act({ t: "accuse", vote: v, result });
+      const full: Vote = details.length ? { ...v, details: ans } : v;
+      const result = await fetchVerdict(c.id, full, tokens);
+      g.act({ t: "accuse", vote: full, result });
     } catch {
       setErr("The Bureau could not be reached. Check your connection and try again.");
     } finally {
@@ -1086,6 +1140,30 @@ function AccusePanel({ g }: { g: Game }) {
   };
 
   if (s.finishedAt) return <p>The accusation has been made.</p>;
+
+  if (stage === "details") {
+    const lab = (list: { id: string; label: string }[], id: string) => list.find((x) => x.id === id)?.label ?? "—";
+    return (
+      <div>
+        <div className="eyebrow">Final report · part two</div>
+        <h2 className="sheet-h">The details</h2>
+        <div className="locked-acc">
+          <div><span>Who</span>{lab(c.suspects.map((x) => ({ id: x.id, label: x.name })), v.suspect)}</div>
+          <div><span>How</span>{lab(c.accusation.methods, v.method)}</div>
+          <div><span>Why</span>{lab(c.accusation.motives, v.motive)}</div>
+        </div>
+        <p className="muted-dark" style={{ marginTop: 0 }}>Your accusation is locked. The Bureau wants the details that prove it. Every answer is scored.</p>
+        {details.map((d, i) => (
+          <ChoiceGroup key={d.id} title={`${i + 1}. ${d.q}`} items={d.choices} val={ans[d.id] ?? ""} set={(x) => setAns((a) => ({ ...a, [d.id]: x }))} />
+        ))}
+        <div className="sticky-actions">
+          <button className="btn primary" disabled={!detailsDone || busy} onClick={accuse}>{busy ? "Filing…" : "Submit and close the file"}</button>
+          {!detailsDone && <span className="muted-dark" style={{ fontSize: 14 }}>{details.filter((d) => ans[d.id]).length} of {details.length} answered</span>}
+          {err && <span className="lookagain" style={{ margin: 0 }}>{err}</span>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -1106,14 +1184,14 @@ function AccusePanel({ g }: { g: Game }) {
         )}
         {g.isHost &&
           (confirming ? (
-            <button className="btn primary" disabled={busy} onClick={accuse}>{busy ? "Filing…" : "Submit anyway"}</button>
+            <button className="btn primary" disabled={busy} onClick={details.length ? () => setStage("details") : accuse}>{busy ? "Filing…" : details.length ? "Lock it anyway" : "Submit anyway"}</button>
           ) : (
             <button
               className="btn primary"
               disabled={!complete || busy}
-              onClick={() => (g.party && voted < here.length ? setConfirming(true) : accuse())}
+              onClick={() => (g.party && voted < here.length ? setConfirming(true) : details.length ? setStage("details") : accuse())}
             >
-              {busy ? "Filing…" : g.party ? "Submit the room's accusation" : "Submit and close the file"}
+              {busy ? "Filing…" : details.length ? (g.party ? "Lock the room's accusation" : "Lock the accusation") : g.party ? "Submit the room's accusation" : "Submit and close the file"}
             </button>
           ))}
         {g.party && (
@@ -1161,6 +1239,27 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
   const skipped = Object.values(s.solved).filter((x) => x === "skipped").length;
   const suspect = c.suspects.find((x) => x.id === a?.suspect);
   const real = c.suspects.find((x) => x.id === solution.suspect)!;
+  const det = s.result.details ?? [];
+  const detRight = det.filter((d) => d.correct).length;
+  // the notebook grid against the truth: the right options marked likely, the wrong ones ruled out
+  const gridItems = [
+    ...c.suspects.map((x) => ({ key: `s:${x.id}`, truth: x.id === solution.suspect })),
+    ...c.accusation.methods.map((x) => ({ key: `m:${x.id}`, truth: x.id === solution.method })),
+    ...c.accusation.motives.map((x) => ({ key: `w:${x.id}`, truth: x.id === solution.motive })),
+  ];
+  const gridRight = gridItems.filter((it) => {
+    const m = gridMark(g.priv, it.key);
+    return it.truth ? m === "likely" : m === "out";
+  }).length;
+  // Bureau rating out of 100: the accusation 60, the details 30, the notebook 10; hints and skipped checkpoints cost
+  const rating = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round((parts[0] ? 30 : 0) + (parts[1] ? 15 : 0) + (parts[2] ? 15 : 0) + (det.length ? (30 * detRight) / det.length : 30) + (10 * gridRight) / gridItems.length - hints * 3 - skipped * 5),
+    ),
+  );
+  const grade = rating >= 90 ? "Distinction" : rating >= 75 ? "Commended" : rating >= 55 ? "Satisfactory" : rating >= 35 ? "Under review" : "Unfit for the field";
 
   return (
     <div>
@@ -1181,8 +1280,33 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
           </tbody>
         </table>
         {!parts[0] && <p style={{ margin: "10px 0 0", fontSize: 13.5 }}>The killer was <b>{real.name}</b>.</p>}
+        {det.length > 0 && (
+          <>
+            <div className="serif" style={{ fontWeight: 700, margin: "18px 0 6px" }}>The details · {detRight} of {det.length}</div>
+            <table className="grid" style={{ fontSize: 13 }}>
+              <tbody>
+                {det.map((d) => {
+                  const q = c.accusation.details?.find((x) => x.id === d.id);
+                  const lab = (id?: string) => q?.choices.find((x) => x.id === id)?.label ?? "—";
+                  return (
+                    <tr key={d.id}>
+                      <th style={{ width: "34%" }}>{q?.q}</th>
+                      <td>
+                        {lab(a?.details?.[d.id])}
+                        {!d.correct && <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>Answer: {lab(d.answer)}</div>}
+                      </td>
+                      <td style={{ width: 40 }}>{d.correct ? "✓" : "✗"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginTop: 18, textAlign: "center" }}>
           <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 16 }}>{verdict}</div></div>
+          <div><div className="small muted">BUREAU RATING</div><div className="serif" style={{ fontSize: 17 }}>{rating} / 100</div><div className="small muted" style={{ marginTop: 2 }}>{grade}</div></div>
+          <div><div className="small muted">YOUR GRID</div><div className="serif" style={{ fontSize: 17 }}>{gridRight} of {gridItems.length}</div></div>
           <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
           <div><div className="small muted">HINTS USED</div><div className="serif" style={{ fontSize: 17 }}>{hints}</div></div>
           <div><div className="small muted">CHECKPOINTS</div><div className="serif" style={{ fontSize: 17 }}>{c.rounds.length - skipped} of {c.rounds.length} unaided</div></div>
@@ -1225,9 +1349,19 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
 const MOVES = ["push", "pan-l", "pull", "pan-r", "lens", "rise"];
 function BriefingStill({ src }: { src: string }) {
   // Each photo keeps its own layer, so its camera move carries on smoothly while the next one dissolves over it.
-  const [layers, setLayers] = useState<string[]>([src]);
+  // A photo joins only once it is fully downloaded and decoded, so it never paints half-loaded; until then the
+  // previous photo carries on.
+  const [layers, setLayers] = useState<string[]>([]);
   useEffect(() => {
-    setLayers((x) => (x[x.length - 1] === src ? x : [...x.filter((y) => y !== src), src].slice(-2)));
+    let live = true;
+    const img = new Image();
+    img.src = src;
+    img.decode().catch(() => {}).then(() => {
+      if (live) setLayers((x) => (x[x.length - 1] === src ? x : [...x.filter((y) => y !== src), src].slice(-2)));
+    });
+    return () => {
+      live = false;
+    };
   }, [src]);
   const moveOf = (u: string) => MOVES[Math.abs([...u].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7)) % MOVES.length];
   return (

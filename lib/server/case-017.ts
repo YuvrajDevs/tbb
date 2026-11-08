@@ -22,6 +22,8 @@ export interface CaseSecret {
   hintVoice: Record<number, NarrationLine[]>;
   reveal: NarrationLine[];
   solution: { suspect: string; method: string; motive: string; proofs: { clue: string; exhibit: number }[] };
+  /** answers to the precise report questions (CaseFile.accusation.details) */
+  details?: Record<string, string>;
   /** narration files that would give answers away are stored under unguessable names */
   audio: Record<string, string>;
 }
@@ -239,6 +241,7 @@ export const case017: CaseSecret = {
       }
     ]
   },
+  "details": { "source": "hospital", "camera": "fast", "voices": "meera-call", "letter": "steamed", "pair": "meera-kapoor" },
   "audio": {
     "V-01": "V-01.50b47098a573",
     "V-02": "V-02.43084ae28908",

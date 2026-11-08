@@ -223,6 +223,61 @@ export const hollowPines: CaseFile = {
       { id: "land", label: "To push through the sale of the lower estate land" },
       { id: "grudge", label: "Revenge for years of mistreatment in service" },
     ],
+    details: [
+      {
+        id: "source",
+        q: "Where did the means of killing come from?",
+        choices: [
+          { id: "hospital", label: "Hospital stock, drawn under Dr. Kapoor's name" },
+          { id: "cabinet", label: "The medicine cabinet at Hollow Pines" },
+          { id: "chemist", label: "A chemist in Dehradun" },
+          { id: "kabir", label: "Brought to the house by Kabir Sethi" },
+          { id: "none", label: "Nothing was used. He died naturally" },
+        ],
+      },
+      {
+        id: "camera",
+        q: "Why does the gate camera disagree with Dr. Kapoor's account of his evening?",
+        choices: [
+          { id: "fast", label: "The recorder's clock runs 18 minutes fast" },
+          { id: "lied", label: "Dr. Kapoor lied about when he left" },
+          { id: "edited", label: "Someone edited the footage" },
+          { id: "service", label: "He left by the service gate, which has no camera" },
+        ],
+      },
+      {
+        id: "voices",
+        q: "Who did Sunita hear in the study at about 10:15 PM?",
+        choices: [
+          { id: "vikram", label: "Vikram, talking on the phone" },
+          { id: "meera-call", label: "Meera, on a phone call" },
+          { id: "arjun", label: "Arjun, arguing with his father" },
+          { id: "kapoor", label: "Dr. Kapoor, who had come back" },
+          { id: "radio", label: "The radio on the shelf" },
+        ],
+      },
+      {
+        id: "letter",
+        q: "What happened to the lawyer's letter?",
+        choices: [
+          { id: "steamed", label: "It was steamed open, read and glued shut again" },
+          { id: "burned", label: "It was burned in the study fire" },
+          { id: "unread", label: "It never reached the house" },
+          { id: "hidden", label: "Vikram read it and hid it" },
+        ],
+      },
+      {
+        id: "pair",
+        q: "Which two people worked together?",
+        choices: [
+          { id: "meera-kapoor", label: "Meera Rathore and Dr. Kapoor" },
+          { id: "arjun-kabir", label: "Arjun Rathore and Kabir Sethi" },
+          { id: "sunita-arjun", label: "Sunita Negi and Arjun Rathore" },
+          { id: "kabir-kapoor", label: "Kabir Sethi and Dr. Kapoor" },
+          { id: "alone", label: "Nobody. The killer acted alone" },
+        ],
+      },
+    ],
   },
 };
 
