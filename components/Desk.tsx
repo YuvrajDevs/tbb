@@ -6,7 +6,7 @@ import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, CLOCK_START, COST, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
-import { askSuspect, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
+import { askSuspect, checkAnswer, fetchHint, fetchIntro, fetchVerdict, searchRoom, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { RatingPrompt } from "./RatingPrompt";
@@ -23,7 +23,7 @@ const IDLE_MS = (() => {
   }
 })();
 
-type Panel = null | "interview" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Panel = null | "interview" | "search" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -326,6 +326,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {unread > 0 && <span className="badge">{unread}</span>}
             </button>
           )}
+          {c.rooms && <button className="btn sm ghost hide-sm" onClick={() => go("search")}>Search</button>}
           <button className="btn sm ghost hide-sm" onClick={() => go("interview")}>Interview</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("hints")}>Hints</button>
@@ -579,6 +580,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
             {Glyph.files}<span>Files</span>
           </button>
+          {c.rooms && <button className={panel === "search" ? "on" : ""} onClick={() => go("search")}>{Glyph.search}<span>Search</span></button>}
           <button className={panel === "interview" ? "on" : ""} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
@@ -620,6 +622,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               />
             )}
             {panel === "interview" && <InterviewPanel g={g} />}
+            {panel === "search" && <SearchPanel g={g} />}
             {panel === "notebook" && <NotebookPanel g={g} />}
             {panel === "settings" && <SettingsPanel g={g} />}
             {panel === "table" && <TablePanel g={g} />}
@@ -1519,5 +1522,86 @@ function InvestigationClock({ spent }: { spent: number }) {
     <span className="inv-clock hide-sm" title={`Investigation clock. Questions cost ${COST.question} min, searches ${COST.search}, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
       {clockLabel(spent).toUpperCase()}
     </span>
+  );
+}
+
+/* ---------- searching the house ---------- */
+function SearchPanel({ g }: { g: Game }) {
+  const { c, s, priv, setPriv } = g;
+  const rooms = c.rooms ?? [];
+  const [room, setRoom] = useState(rooms[0]?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [last, setLast] = useState<{ room: string; text: string; nothing: boolean } | null>(null);
+  const found = priv.searched ?? {};
+  const go = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await searchRoom(c.id, room, found[room] ?? [], s.tokens ?? {});
+      g.act({ t: "spend", min: COST.search });
+      setLast({ room, text: r.text, nothing: r.index < 0 });
+      if (r.index >= 0)
+        setPriv((x) => ({
+          ...x,
+          searched: { ...(x.searched ?? {}), [room]: [...(x.searched?.[room] ?? []), r.index] },
+          findings: { ...(x.findings ?? {}), [`${room}:${r.index}`]: r.text },
+        }));
+    } catch {
+      setErr("The search could not be logged. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const label = (id: string) => rooms.find((r) => r.id === id)?.label ?? id;
+  const log = Object.entries(priv.findings ?? {}).reverse();
+  const floors: { id: "ground" | "upper" | "grounds"; title: string }[] = [
+    { id: "ground", title: "Ground floor" },
+    { id: "upper", title: "Upstairs" },
+    { id: "grounds", title: "The grounds" },
+  ];
+  return (
+    <div>
+      <div className="eyebrow">Search Hollow Pines · each search costs {COST.search} minutes</div>
+      <h2 className="sheet-h">Where do you want to look?</h2>
+      <div className="plan">
+        {rooms.map((r) => (
+          <button
+            key={r.id}
+            className={`plan-room ${room === r.id ? "on" : ""} f-${r.floor}`}
+            style={{ gridColumn: `${r.area[0]} / span ${r.area[2]}`, gridRow: `${r.area[1]} / span ${r.area[3]}` }}
+            onClick={() => setRoom(r.id)}
+          >
+            <span>{r.label}</span>
+            <span className="plan-n">{(found[r.id] ?? []).length ? `${found[r.id].length} found` : ""}</span>
+          </button>
+        ))}
+      </div>
+      <div className="plan-key">{floors.map((f) => <span key={f.id} className={`f-${f.id}`}>{f.title}</span>)}</div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
+        <button className="btn primary" disabled={!room || busy} onClick={go}>{busy ? "Searching…" : `Search ${label(room).toLowerCase()}`}</button>
+        {err && <span className="lookagain" style={{ margin: 0 }}>{err}</span>}
+      </div>
+      {last && (
+        <p className={`find-now ${last.nothing ? "none" : ""}`}>
+          <span className="iv-q">{label(last.room)}</span>
+          <br />
+          {last.text}
+        </p>
+      )}
+      <h2 className="sheet-h" style={{ marginTop: 22 }}>Found so far</h2>
+      {log.length === 0 ? (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing yet. Rooms can hold more once new folders are open.</p>
+      ) : (
+        <ul className="iv-log">
+          {log.map(([k, text]) => (
+            <li key={k}>
+              <div className="iv-q">{label(k.split(":")[0])}</div>
+              <div className="iv-a">{text}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

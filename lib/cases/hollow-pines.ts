@@ -208,6 +208,15 @@ export const hollowPines: CaseFile = {
       ],
     },
   },
+  rooms: [
+    { id: "study", label: "The study", area: [1, 1, 3, 2], floor: "ground" },
+    { id: "hall", label: "Entrance hall", area: [4, 1, 2, 2], floor: "ground" },
+    { id: "kitchen", label: "Kitchen and Sunita's quarter", area: [4, 3, 2, 1], floor: "ground" },
+    { id: "bedroom", label: "Vikram and Meera's bedroom", area: [1, 3, 2, 1], floor: "upper" },
+    { id: "arjun", label: "Arjun's room", area: [3, 3, 1, 1], floor: "upper" },
+    { id: "gate", label: "Main gate and guard hut", area: [1, 4, 3, 1], floor: "grounds" },
+    { id: "back", label: "Back gate and garden", area: [4, 4, 2, 1], floor: "grounds" },
+  ],
   accusation: {
     methods: [
       { id: "kcl", label: "Injected potassium chloride into a vein" },

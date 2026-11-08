@@ -75,6 +75,9 @@ export interface Private {
   interviews?: Record<string, string>;
   /** the recording for each heard answer, same keys */
   interviewAudio?: Record<string, string>;
+  /** what this device has found searching the house: room -> finding indexes, and "room:index" -> text */
+  searched?: Record<string, number[]>;
+  findings?: Record<string, string>;
 }
 
 export type GridMark = "out" | "maybe" | "likely";

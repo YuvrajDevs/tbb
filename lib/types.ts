@@ -103,6 +103,8 @@ export interface CaseFile {
     /** precise questions asked once who, how and why are locked; answers live on the server */
     details?: { id: string; q: string; choices: Choice[] }[];
   };
+  /** rooms a detective can search, laid out on a simple plan: col/row/width/height on a 6 x 5 grid */
+  rooms?: { id: string; label: string; area: [number, number, number, number]; floor: "ground" | "upper" | "grounds" }[];
 }
 
 export interface ShelfEntry {

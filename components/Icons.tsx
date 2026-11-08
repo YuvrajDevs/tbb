@@ -112,6 +112,7 @@ export function FileIcon({ type, size = 28 }: { type: FileType; size?: number })
 }
 
 export const Glyph = {
+  search: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><circle cx="7" cy="7" r="4.5" /><path d="M10.4 10.4L14 14" /></svg>,
   talk: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d="M2 3.5h9v6H6l-3 2.5V9.5H2z" /><path d="M11 6h3v5.5h-1v2l-2.5-2H7.5" /></svg>,
   // settings: three sliders (the old gear read as a sun)
   gear: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><path d="M2 4h7M12 4h2M2 8h2M7 8h7M2 12h8M13 12h1" /><circle cx="10.5" cy="4" r="1.5" /><circle cx="5.5" cy="8" r="1.5" /><circle cx="11.5" cy="12" r="1.5" /></svg>,

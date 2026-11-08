@@ -712,3 +712,17 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .iv-a { font-family: var(--display); font-size: 15.5px; line-height: 1.5; margin-top: 4px; color: var(--text); }
 .iv-play { margin-left: 10px; background: none; border: 0; color: var(--manila); font: inherit; font-size: 11px; letter-spacing: .08em; cursor: pointer; padding: 0; }
 .inv-clock { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--manila); border: 1px solid var(--line-2); padding: 7px 10px; white-space: nowrap; }
+
+/* ---------- searching the house ---------- */
+.plan { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(4, 64px); gap: 6px; }
+.plan-room { display: flex; flex-direction: column; justify-content: space-between; text-align: left; padding: 8px 10px; border: 1px solid var(--line-2); background: rgba(239, 230, 210, .04); color: var(--text); font: inherit; font-size: 13.5px; cursor: pointer; }
+.plan-room.f-upper { border-style: dashed; }
+.plan-room.f-grounds { background: rgba(120, 150, 110, .07); }
+.plan-room.on { border-color: var(--manila); background: rgba(212, 178, 120, .12); }
+.plan-n { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--manila); }
+.plan-key { display: flex; gap: 16px; margin-top: 8px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; }
+.plan-key span::before { content: ""; display: inline-block; width: 12px; height: 9px; margin-right: 6px; border: 1px solid var(--line-2); vertical-align: -1px; }
+.plan-key .f-upper::before { border-style: dashed; }
+.plan-key .f-grounds::before { background: rgba(120, 150, 110, .25); }
+.find-now { border: 1px solid var(--manila); padding: 12px 14px; margin: 14px 0 0; font-family: var(--display); line-height: 1.5; }
+.find-now.none { border-color: var(--line-2); color: var(--text-2); font-style: italic; }
