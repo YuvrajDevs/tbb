@@ -6,7 +6,7 @@ import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
-import { checkAnswer, fetchHint, fetchVerdict, skipRound } from "@/lib/game/api";
+import { askSuspect, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { RatingPrompt } from "./RatingPrompt";
@@ -23,7 +23,7 @@ const IDLE_MS = (() => {
   }
 })();
 
-type Panel = null |"notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Panel = null | "interview" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -325,6 +325,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {unread > 0 && <span className="badge">{unread}</span>}
             </button>
           )}
+          <button className="btn sm ghost hide-sm" onClick={() => go("interview")}>Interview</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("hints")}>Hints</button>
           <button className="iconbtn" onClick={() => go("settings")} aria-label="Settings">{Glyph.gear}</button>
@@ -577,6 +578,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
             {Glyph.files}<span>Files</span>
           </button>
+          <button className={panel === "interview" ? "on" : ""} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
           {g.party && (
@@ -616,6 +618,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 }}
               />
             )}
+            {panel === "interview" && <InterviewPanel g={g} />}
             {panel === "notebook" && <NotebookPanel g={g} />}
             {panel === "settings" && <SettingsPanel g={g} />}
             {panel === "table" && <TablePanel g={g} />}
@@ -1306,6 +1309,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginTop: 18, textAlign: "center" }}>
           <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 16 }}>{verdict}</div></div>
           <div><div className="small muted">BUREAU RATING</div><div className="serif" style={{ fontSize: 17 }}>{rating} / 100</div><div className="small muted" style={{ marginTop: 2 }}>{grade}</div></div>
+          <div><div className="small muted">QUESTIONS ASKED</div><div className="serif" style={{ fontSize: 17 }}>{Object.keys(g.priv.interviews ?? {}).length}</div></div>
           <div><div className="small muted">YOUR GRID</div><div className="serif" style={{ fontSize: 17 }}>{gridRight} of {gridItems.length}</div></div>
           <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
           <div><div className="small muted">HINTS USED</div><div className="serif" style={{ fontSize: 17 }}>{hints}</div></div>
@@ -1373,6 +1377,103 @@ function BriefingStill({ src }: { src: string }) {
         </div>
       ))}
       <div className="brief-vignette" />
+    </div>
+  );
+}
+
+/* ---------- interviews: ask a person about someone, or show them an exhibit ---------- */
+function InterviewPanel({ g }: { g: Game }) {
+  const { c, s, priv, setPriv } = g;
+  const [who, setWho] = useState(c.suspects[0].id);
+  const [intros, setIntros] = useState<Record<string, string>>({});
+  const [exhibit, setExhibit] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const person = c.suspects.find((x) => x.id === who)!;
+  const heard = priv.interviews ?? {};
+  useEffect(() => {
+    if (intros[who]) return;
+    fetchIntro(c.id, who).then((r) => setIntros((x) => ({ ...x, [who]: r.text }))).catch(() => {});
+  }, [who, intros, c.id]);
+  const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name }))];
+  const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
+  const topicLabel = (t: string) => {
+    if (t.startsWith("p:")) return `About ${t === "p:vikram" ? "Vikram" : c.suspects.find((x) => x.id === t.slice(2))?.name ?? "them"}`;
+    const f = openFiles.find((x) => String(x.exhibit) === t.slice(2));
+    return f ? `Shown Exhibit ${f.exhibit} — ${f.name}` : "Shown an exhibit";
+  };
+  const ask = async (topic: string) => {
+    const key = `${who}|${topic}`;
+    if (heard[key]) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await askSuspect(c.id, who, topic, s.tokens ?? {});
+      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
+    } catch {
+      setErr("The interview room could not be reached. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const transcript = Object.entries(heard).filter(([k]) => k.startsWith(`${who}|`)).reverse();
+  const asked = Object.keys(heard).length;
+  return (
+    <div>
+      <div className="eyebrow">Interviews · {asked} {asked === 1 ? "question" : "questions"} asked</div>
+      <h2 className="sheet-h">Who do you want to see?</h2>
+      <div className="iv-people">
+        {c.suspects.map((x) => (
+          <button key={x.id} className={`iv-person ${who === x.id ? "on" : ""}`} onClick={() => setWho(x.id)}>
+            <span className="serif">{x.name}</span>
+            <span className="muted-dark">{x.role}</span>
+          </button>
+        ))}
+      </div>
+      <p className="iv-intro">{intros[who] ?? "…"}</p>
+      <div className="eyebrow" style={{ marginTop: 14 }}>Ask about</div>
+      <div className="iv-chips">
+        {people.map((p) => {
+          const done = !!heard[`${who}|p:${p.id}`];
+          return (
+            <button key={p.id} className={`btn sm ${done ? "ghost" : ""}`} disabled={busy || done} onClick={() => ask(`p:${p.id}`)}>
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="eyebrow" style={{ marginTop: 14 }}>Show them an exhibit</div>
+      <div className="iv-show">
+        <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Choose an exhibit to show">
+          <option value="">Choose an exhibit…</option>
+          {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
+            <optgroup key={r.number} label={`Round ${r.number} — ${r.title}`}>
+              {r.files.map((f) => (
+                <option key={f.id} value={String(f.exhibit)} disabled={!!heard[`${who}|e:${f.exhibit}`]}>
+                  Exhibit {f.exhibit} — {f.name}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(`e:${exhibit}`).then(() => setExhibit(""))}>
+          {busy ? "Asking…" : "Show"}
+        </button>
+      </div>
+      {err && <p className="lookagain">{err}</p>}
+      <h2 className="sheet-h" style={{ marginTop: 22 }}>{person.name} · transcript</h2>
+      {transcript.length === 0 ? (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing asked yet. Every question goes on the record.</p>
+      ) : (
+        <ul className="iv-log">
+          {transcript.map(([k, text]) => (
+            <li key={k}>
+              <div className="iv-q">{topicLabel(k.split("|")[1])}</div>
+              <div className="iv-a">{text}</div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

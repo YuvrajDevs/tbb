@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { check, hint, skip, verdict, type Vote } from "@/lib/server/judge";
+import { ask, check, hint, interviewIntro, skip, verdict, type Vote } from "@/lib/server/judge";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
  *   { op: "skip", round }              -> CheckResult (answer shown)
  *   { op: "hint", round, level }       -> HintResult
  *   { op: "verdict", vote, tokens }    -> CaseResult, only with a token for every round
+ *   { op: "ask", who, topic, tokens }  -> { text, known }: an interview answer ("p:<person>" or "e:<exhibit>")
+ *   { op: "intro", who }               -> { text }: how an interview opens
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +33,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     case "hint":
       out = hint(id, round, Number(body.level));
       break;
+    case "ask": {
+      const r = ask(id, str(body.who), str(body.topic), (body.tokens ?? {}) as Record<string, unknown>);
+      if (r === "locked") return NextResponse.json({ error: "that folder is still sealed" }, { status: 403 });
+      out = r;
+      break;
+    }
+    case "intro": {
+      const t = interviewIntro(id, str(body.who));
+      out = t ? { text: t } : null;
+      break;
+    }
     case "verdict": {
       const v = (body.vote ?? {}) as Record<string, unknown>;
       const d = (v.details && typeof v.details === "object" ? v.details : {}) as Record<string, unknown>;

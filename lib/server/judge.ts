@@ -2,6 +2,8 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
 import type { CaseResult, CheckResult, HintResult, NarrationLine } from "@/lib/types";
 import { case017, type CaseSecret } from "./case-017";
+import { interviews017, type Interview } from "./interviews-017";
+import { cases } from "@/lib/cases/hollow-pines";
 
 /*
  * The only code that knows the answers. Checkpoints are judged here one at a time; a correct (or skipped)
@@ -78,3 +80,29 @@ export function verdict(caseId: string, vote: Vote, tokens: Record<string, unkno
     details: Object.entries(s.details ?? {}).map(([id, answer]) => ({ id, answer, correct: vote.details?.[id] === answer })),
   };
 }
+
+/* ---------- interviews ---------- */
+const INTERVIEWS: Record<string, Record<string, Interview>> = { "017": interviews017 };
+
+/**
+ * What a person says about a topic: "p:<person>" or "e:<exhibit>". An exhibit can only be shown once its folder is
+ * open, proven by the token of the round before it.
+ */
+export function ask(caseId: string, who: string, topic: string, tokens: Record<string, unknown>): { text: string; known: boolean } | "locked" | null {
+  const iv = INTERVIEWS[caseId]?.[who];
+  const c = cases[caseId];
+  if (!iv || !c) return null;
+  if (topic.startsWith("e:")) {
+    const n = Number(topic.slice(2));
+    const round = c.rounds.find((r) => r.files.some((f) => f.exhibit === n));
+    if (!round) return null;
+    if (round.number > 1 && !tokenOk(caseId, round.number - 1, tokens?.[round.number - 1])) return "locked";
+  } else if (!topic.startsWith("p:")) return null;
+  const said = iv.topics[topic];
+  if (said) return { text: said, known: true };
+  // a steady fallback for the same topic, so asking twice gives the same answer
+  const h = [...topic].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7);
+  return { text: iv.fallback[Math.abs(h) % iv.fallback.length], known: false };
+}
+
+export const interviewIntro = (caseId: string, who: string) => INTERVIEWS[caseId]?.[who]?.intro ?? null;

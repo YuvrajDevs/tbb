@@ -69,6 +69,8 @@ export interface Private {
   briefed?: boolean;
   /** the deduction grid: "s:<suspect>", "m:<method>", "w:<motive>" -> mark */
   grid?: Record<string, GridMark>;
+  /** interview answers this device has heard, keyed "<person>|<topic>", in the order they were asked */
+  interviews?: Record<string, string>;
 }
 
 export type GridMark = "out" | "maybe" | "likely";
