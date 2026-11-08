@@ -18,8 +18,6 @@ export interface Shared {
   wrongTries: Record<number, number>;
   /** minutes on the investigation clock: questions, searches, hints and wrong answers cost time */
   spent?: number;
-  /** a theory put to the table: each other player answers privately with one exhibit that disproves it, or none */
-  theory?: { by: string; vote: Vote; at: number; replies: Record<string, string | null> } | null;
   lastAnswer: { round: number; choice: string; correct: boolean; at: number } | null;
   roundStartedAt: Record<number, number>;
   narration: { script: string; line: number };
@@ -141,14 +139,10 @@ export type Action =
   | { t: "point"; fileId: string }
   | { t: "show"; fileId: string }
   /** time on the investigation clock for a question or a search */
-  | { t: "spend"; min: number }
-  /** put a theory to the table (who, how, why), or withdraw it with null */
-  | { t: "theory"; vote: Vote | null }
-  /** answer the table's theory with an exhibit id that disproves it, or null for "I can't disprove it" */
-  | { t: "rebut"; fileId: string | null };
+  | { t: "spend"; min: number };
 
 /** Actions any player may send. Everything else is the host's. */
-const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend", "theory", "rebut"];
+const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend"];
 
 /** What each kind of work costs on the investigation clock, in minutes. */
 export const COST = { question: 15, search: 20, hint: 30, wrong: 20 } as const;
@@ -323,21 +317,6 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
     }
     case "hint":
       return bump({ hints: { ...s.hints, [actor]: (s.hints[actor] ?? 0) + 1 }, spent: (s.spent ?? 0) + COST.hint });
-    case "theory": {
-      if (!s.players[actor] || s.phase !== "play" || s.finishedAt) return s;
-      if (!a.vote) return s.theory?.by === actor ? bump({ theory: null }) : s;
-      const v = a.vote;
-      if (!c.suspects.some((x) => x.id === v.suspect) || !c.accusation.methods.some((x) => x.id === v.method) || !c.accusation.motives.some((x) => x.id === v.motive)) return s;
-      return bump({ theory: { by: actor, vote: { suspect: v.suspect, method: v.method, motive: v.motive }, at: ctx.now, replies: {} } });
-    }
-    case "rebut": {
-      const th = s.theory;
-      if (!th || !s.players[actor] || actor === th.by || actor in th.replies) return s;
-      // only an exhibit from an open folder counts
-      const open = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files.map((f) => f.id));
-      if (a.fileId !== null && !open.includes(a.fileId)) return s;
-      return bump({ theory: { ...th, replies: { ...th.replies, [actor]: a.fileId } } });
-    }
     case "spend":
       if (s.phase !== "play" || s.finishedAt || !s.players[actor]) return s;
       return bump({ spent: (s.spent ?? 0) + Math.max(0, Math.min(60, Math.round(a.min))) });

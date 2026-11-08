@@ -726,13 +726,6 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .find-now { border: 1px solid var(--manila); padding: 12px 14px; margin: 14px 0 0; font-family: var(--display); line-height: 1.5; }
 .find-now.none { border-color: var(--line-2); color: var(--text-2); font-style: italic; }
 
-/* ---------- a theory for the table ---------- */
-.theory { border: 1px solid var(--line-2); padding: 12px 14px; margin: 0 0 16px; }
-.theory-v { margin: 6px 0 8px; font-family: var(--display); line-height: 1.45; }
-.theory-replies { margin: 0 0 6px; padding-left: 18px; font-size: 14px; }
-.theory-pick { display: grid; gap: 6px; margin-top: 8px; }
-.theory-pick select { background: transparent; color: var(--text); border: 1px solid var(--line-2); padding: 8px 10px; font: inherit; font-size: 14px; }
-.theory-pick option { background: #15110d; }
 
 /* the briefing photo on phones: a 16:9 card above the folders */
 .brief-mobile { display: none; }
