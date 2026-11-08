@@ -18,6 +18,12 @@ export interface Shared {
   wrongTries: Record<number, number>;
   /** minutes on the investigation clock: questions, searches, hints and wrong answers cost time */
   spent?: number;
+  /** party rooms: "classic" solves one case together; "race" gives every player their own case and a winner */
+  play?: "classic" | "race";
+  /** race standings, one entry per player, reported by each player's own case */
+  race?: Record<string, RaceEntry>;
+  /** the first player to close the case correctly */
+  winner?: string | null;
   lastAnswer: { round: number; choice: string; correct: boolean; at: number } | null;
   roundStartedAt: Record<number, number>;
   narration: { script: string; line: number };
@@ -80,11 +86,16 @@ export interface Private {
   findingExhibit?: Record<string, number>;
   /** the how-to-play guide has been shown once */
   guided?: boolean;
+  /** race mode: theories put to the Bureau and its answers */
+  theories?: { vote: Vote; part: "suspect" | "method" | "motive" | null; exhibit?: number; text: string }[];
   /** late-clock notices already given ("8h", "midnight") */
   clockNotes?: string[];
 }
 
 export type GridMark = "out" | "maybe" | "likely";
+
+/** where a racer stands: their open folder, their clock, and how their case ended */
+export type RaceEntry = { round: number; spent: number; finishedAt?: number; correct?: boolean; rating?: number };
 
 export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: true });
 
@@ -139,13 +150,21 @@ export type Action =
   | { t: "point"; fileId: string }
   | { t: "show"; fileId: string }
   /** time on the investigation clock for a question or a search */
-  | { t: "spend"; min: number };
+  | { t: "spend"; min: number }
+  /** lobby: classic (together) or race (everyone on their own case) */
+  | { t: "setPlay"; play: "classic" | "race" }
+  /** a racer's progress on their own case */
+  | { t: "raceStatus"; round: number; spent: number }
+  /** a racer closed their case; the first correct one wins */
+  | { t: "raceFinish"; correct: boolean; rating: number };
 
 /** Actions any player may send. Everything else is the host's. */
-const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend"];
+const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend", "raceStatus", "raceFinish"];
 
 /** What each kind of work costs on the investigation clock, in minutes. */
-export const COST = { question: 15, search: 20, hint: 30, wrong: 20 } as const;
+export const COST = { question: 15, search: 20, hint: 30, wrong: 20, theory: 30 } as const;
+/** race mode: theories each racer may put to the Bureau */
+export const THEORIES_PER_RACE = 3;
 /** The clock starts when the Bureau takes the case: Sunday 11 October 2026, 09:05. */
 export const CLOCK_START = Date.UTC(2026, 9, 11, 9, 5);
 
@@ -317,6 +336,22 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
     }
     case "hint":
       return bump({ hints: { ...s.hints, [actor]: (s.hints[actor] ?? 0) + 1 }, spent: (s.spent ?? 0) + COST.hint });
+    case "setPlay":
+      return s.phase === "lobby" && (s.play ?? "classic") !== a.play ? bump({ play: a.play }) : s;
+    case "raceStatus": {
+      const cur = s.race?.[actor];
+      if (s.play !== "race" || s.phase !== "play" || !s.players[actor] || cur?.finishedAt) return s;
+      const round = Math.max(1, Math.min(c.rounds.length, Math.round(a.round)));
+      const spent = Math.max(0, Math.round(a.spent));
+      if (cur && cur.round === round && cur.spent === spent) return s;
+      return bump({ race: { ...(s.race ?? {}), [actor]: { ...(cur ?? {}), round, spent } } });
+    }
+    case "raceFinish": {
+      const cur = s.race?.[actor];
+      if (s.play !== "race" || s.phase !== "play" || !s.players[actor] || cur?.finishedAt) return s;
+      const entry: RaceEntry = { round: c.rounds.length, spent: cur?.spent ?? 0, ...cur, finishedAt: ctx.now, correct: a.correct, rating: Math.max(0, Math.min(100, Math.round(a.rating))) };
+      return bump({ race: { ...(s.race ?? {}), [actor]: entry }, winner: s.winner ?? (a.correct ? actor : null) });
+    }
     case "spend":
       if (s.phase !== "play" || s.finishedAt || !s.players[actor]) return s;
       return bump({ spent: (s.spent ?? 0) + Math.max(0, Math.min(60, Math.round(a.min))) });

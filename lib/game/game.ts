@@ -24,6 +24,8 @@ export interface Game {
   priv: Private;
   setPriv(fn: (p: Private) => Private): void;
   room?: { code: string; transport: "supabase" | "relay" | "local" };
+  /** in a race, the room this player's own case belongs to (standings, chat, the winner) */
+  race?: Game;
 }
 
 /* ---------- storage helpers (never throw) ---------- */
@@ -141,6 +143,58 @@ export function useSoloGame(c: CaseFile): Game | null {
 
   if (!s) return null;
   return { c, s, me: "solo", isHost: true, party: false, online: ["solo"], hostAway: false, pausedAt: null, connected: true, skew: 0, act, priv, setPriv };
+}
+
+/* =========================== RACE =========================== */
+
+/**
+ * A racer's own copy of the case inside a race room: the solo engine, kept per room and per race on this device,
+ * reporting its progress and its finish to the room. The room game stays alive alongside for standings and chat.
+ */
+export function useRaceGame(c: CaseFile, room: Game): Game | null {
+  const startedAt = room.s.startedAt ?? 0;
+  const key = `blackwood:race:${room.room?.code}:${startedAt}:${room.me}`;
+  const [s, setS] = useState<Shared | null>(null);
+  const { priv, setPriv } = usePrivate(`${key}:private`);
+  useEffect(() => {
+    const saved = read<Shared>("local", key);
+    const st = saved && saved.caseId === c.id ? saved : { ...newShared(c, "solo", room.s.players[room.me]?.name ?? "Detective", true), startedAt, roundStartedAt: { 1: startedAt } };
+    write("local", key, st);
+    setS(st);
+  }, [c, key, startedAt, room.me, room.s.players]);
+  const act = useCallback(
+    (a: Action) =>
+      setS((prev) => {
+        if (!prev) return prev;
+        const next = reduce(c, prev, a, "solo", { now: Date.now(), online: ["solo"] });
+        if (next !== prev) write("local", key, next);
+        return next;
+      }),
+    [c, key]
+  );
+  // report progress and the finish to the room
+  const roomAct = room.act;
+  const round = s?.unlocked ?? 1;
+  const spent = s?.spent ?? 0;
+  const finished = !!(s?.finishedAt && s.result);
+  const correct = s?.result?.right === 3;
+  const rating = s ? raceRating(s) : 0;
+  useEffect(() => {
+    if (!s) return;
+    if (finished) roomAct({ t: "raceFinish", correct, rating });
+    else roomAct({ t: "raceStatus", round, spent });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round, spent, finished, correct, rating, roomAct, !!s]);
+  if (!s) return null;
+  return { c, s, me: "solo", isHost: true, party: false, online: ["solo"], hostAway: false, pausedAt: null, connected: room.connected, skew: 0, act, priv, setPriv, race: room };
+}
+
+/** a rough rating for the standings: the accusation and the details (the report card has the full one) */
+function raceRating(s: Shared) {
+  const r = s.result;
+  if (!r) return 0;
+  const det = r.details ?? [];
+  return Math.round((r.parts[0] ? 30 : 0) + (r.parts[1] ? 15 : 0) + (r.parts[2] ? 15 : 0) + (det.length ? (30 * det.filter((d) => d.correct).length) / det.length : 30));
 }
 
 /* =========================== ROOM =========================== */

@@ -38,9 +38,15 @@ The owner likes the current UI — keep it.
 - **Content protection:** checkpoint answers, hints, the solution, the reveal, the detail answers, interview answers and
   search findings all live server-side (`lib/server/`) and are released against signed round tokens.
 - **Evidence:** every exhibit drawn in code (`components/evidence/round1..5.tsx`); photos and audio supplied (see ASSETS.md).
-- **Party rooms:** host controls narration, answers and the accusation; shared or split evidence; table chat; point the table
-  to an exhibit; **theories** (put who/how/why to the table; others answer privately with one exhibit that disproves it);
-  votes; host hand-over and the rest of the robustness work listed in git history.
+- **Play styles:**
+  - **Solo:** classic only.
+  - **Party room, Classic:** one shared case solved together. Host controls narration, answers and the accusation; shared or
+    split evidence; table chat; point the table to an exhibit; votes; host hand-over and the robustness work in git history.
+  - **Party room, Race** (2 to 6): every player gets their own copy of the case (`useRaceGame` in `lib/game/game.ts`,
+    the solo engine kept per room on each device) and reports their folder, clock and finish to the room. Standings and
+    chat in the Race panel. First correct accusation wins; a wrong accusation is out. Up to 3 **theories to the Bureau**
+    per racer (30 min each): the server rules out one wrong part with an exhibit from a folder the racer has opened
+    (`disproof` in `lib/server/case-017.ts`), and gives the same reply when nothing is ruled out, so it never confirms.
 - **Phones:** bottom tab bar (Files, Search, Interview, Notebook, Hints, Table, Accuse), bottom sheets.
 - **Tests** (`tests/e2e/`, Playwright): the original suites predate the new mechanics; new features were checked by hand in
   headless browsers.

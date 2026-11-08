@@ -736,3 +736,16 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .iv-link { display: inline-block; margin-top: 6px; background: none; border: 0; padding: 0; font: inherit; font-family: var(--mono); font-size: 11.5px; letter-spacing: .05em; color: var(--manila); cursor: pointer; text-align: left; }
 span.iv-link { cursor: default; }
 .guide { margin: 0 0 20px; padding-left: 20px; display: grid; gap: 10px; line-height: 1.5; }
+
+/* ---------- race mode ---------- */
+.standings { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.standings li { display: grid; grid-template-columns: 44px 12px 1fr auto; align-items: center; gap: 10px; border: 1px solid var(--line); padding: 10px 12px; }
+.standings li.won { border-color: var(--manila); background: rgba(212, 178, 120, .1); }
+.standings li.out { opacity: .55; }
+.st-place { font-family: var(--mono); font-size: 13px; color: var(--manila); }
+.st-name { font-family: var(--display); font-size: 15.5px; }
+.st-status { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--text-3); text-align: right; }
+.race-result { margin: 12px 0 0; font-family: var(--display); font-size: 16px; font-weight: 700; }
+.theory-pick { display: grid; gap: 6px; margin-top: 8px; }
+.theory-pick select { background: transparent; color: var(--text); border: 1px solid var(--line-2); padding: 8px 10px; font: inherit; font-size: 14px; }
+.theory-pick option { background: #15110d; }

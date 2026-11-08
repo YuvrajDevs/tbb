@@ -131,3 +131,27 @@ export function search(caseId: string, room: string, found: number[], tokens: Re
   if (i < 0) return { index: -1, text: "You go over the room again, slowly. Nothing new turns up, for now." };
   return { index: i, text: list[i].text, exhibit: list[i].exhibit };
 }
+
+/* ---------- race-mode theories ---------- */
+/**
+ * A racer puts who/how/why to the Bureau. The answer rules out one wrong part with an exhibit the racer can already
+ * read (who first, then how, then why). If nothing in the open folders rules anything out, the answer is the same
+ * whether the theory is right or not, so it can never be used to test for the solution.
+ */
+export function theory(caseId: string, vote: Vote, tokens: Record<string, unknown>): { part: "suspect" | "method" | "motive" | null; exhibit?: number; text: string } | null {
+  const s = caseSecret(caseId);
+  if (!s?.disproof) return null;
+  const upTo = openedUpTo(caseId, tokens);
+  const parts: ["suspect" | "method" | "motive", string][] = [
+    ["suspect", `s:${vote.suspect}`],
+    ["method", `m:${vote.method}`],
+    ["motive", `w:${vote.motive}`],
+  ];
+  const sol = s.solution;
+  for (const [part, key] of parts) {
+    const right = key === `s:${sol.suspect}` || key === `m:${sol.method}` || key === `w:${sol.motive}`;
+    const d = s.disproof[key];
+    if (!right && d && d.round <= upTo) return { part, exhibit: d.exhibit, text: d.text };
+  }
+  return { part: null, text: "Nothing in the folders you have opened rules this out. That is not the same as proof." };
+}

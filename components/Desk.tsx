@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, CLOCK_START, COST, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
+import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
-import { askSuspect, checkAnswer, fetchHint, fetchIntro, fetchVerdict, searchRoom, skipRound } from "@/lib/game/api";
+import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, searchRoom, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { RatingPrompt } from "./RatingPrompt";
@@ -23,7 +23,7 @@ const IDLE_MS = (() => {
   }
 })();
 
-type Panel = null | "interview" | "search" | "guide" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Panel = null | "interview" | "search" | "guide" | "standings" | "theory" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -216,6 +216,29 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
         : "Midnight on the investigation clock. The Director expects a report.",
     );
   }, [s.spent, s.finishedAt, priv.clockNotes, setPriv, toast]);
+  // ---------- race: where I stand, and news from the other racers ----------
+  const room = g.race;
+  const racePlace = room ? placeOf(room, room.me) : "";
+  const raceChat = room?.s.chat ?? [];
+  const [raceSeen, setRaceSeen] = useState(0);
+  useEffect(() => {
+    if (panel === "standings") setRaceSeen(raceChat.length);
+  }, [panel, raceChat.length]);
+  const raceUnread = room ? Math.max(0, raceChat.filter((m) => m.by !== room.me).length - raceChat.slice(0, raceSeen).filter((m) => m.by !== room.me).length) : 0;
+  const lastRace = useRef<Record<string, boolean>>({});
+  const lastWinner = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!room) return;
+    const nm = (id: string) => room.s.players[id]?.name ?? "A player";
+    for (const [id, e] of Object.entries(room.s.race ?? {})) {
+      if (!e.finishedAt || lastRace.current[id] || id === room.me) continue;
+      lastRace.current[id] = true;
+      if (lastWinner.current !== undefined && !e.correct) toast(`${nm(id)} made a wrong accusation and is out of the race.`);
+    }
+    const w = room.s.winner ?? null;
+    if (lastWinner.current !== undefined && w && w !== lastWinner.current && w !== room.me) toast(`${nm(w)} closed the case first. You can still finish yours.`);
+    lastWinner.current = w;
+  }, [room, toast]);
   useEffect(() => {
     if (!slideshow) return;
     for (const l of c.narration.briefing) if (l.image) new Image().src = l.image;
@@ -345,6 +368,15 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               <span className="dot" /> {playersHere}
               {unread > 0 && <span className="badge">{unread}</span>}
             </button>
+          )}
+          {g.race && (
+            <button className="btn sm ghost hide-sm" onClick={() => go("standings")}>
+              Standings{racePlace ? ` · ${racePlace}` : ""}
+              {raceUnread > 0 && <span className="badge">{raceUnread}</span>}
+            </button>
+          )}
+          {g.race && !s.finishedAt && (
+            <button className="btn sm ghost hide-sm" disabled={inBriefing} onClick={() => go("theory")}>Theory</button>
           )}
           <button className="btn sm ghost hide-sm" onClick={() => go("guide")}>How to play</button>
           {c.rooms && <button className="btn sm ghost hide-sm" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : ""} onClick={() => go("search")}>Search</button>}
@@ -611,6 +643,12 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={panel === "interview" ? "on" : ""} disabled={inBriefing} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
+          {g.race && (
+            <button className={panel === "standings" ? "on" : ""} onClick={() => go("standings")}>
+              {Glyph.table}<span>Race</span>
+              {raceUnread > 0 && <span className="badge">{raceUnread}</span>}
+            </button>
+          )}
           {g.party && (
             <button className={panel === "table" ? "on" : ""} onClick={() => go("table")}>
               {Glyph.table}<span>Table</span>
@@ -661,7 +699,9 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 }}
               />
             )}
-            {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} />}
+            {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} race={!!g.race} />}
+            {panel === "standings" && g.race && <StandingsPanel g={g} room={g.race} />}
+            {panel === "theory" && g.race && <TheoryPanel g={g} locked={inBriefing} />}
             {panel === "notebook" && <NotebookPanel g={g} />}
             {panel === "settings" && <SettingsPanel g={g} />}
             {panel === "table" && <TablePanel g={g} />}
@@ -1050,7 +1090,7 @@ function SettingsPanel({ g }: { g: Game }) {
   );
 }
 
-function TablePanel({ g }: { g: Game }) {
+function TablePanel({ g, race = false }: { g: Game; race?: boolean }) {
   const { s } = g;
   const [copied, setCopied] = useState(false);
   const [text, setText] = useState("");
@@ -1070,9 +1110,9 @@ function TablePanel({ g }: { g: Game }) {
 
   return (
     <div>
-      <div className="eyebrow">Room {g.room?.code}</div>
-      <h2 className="sheet-h">The table</h2>
-      <ul className="roster">
+      {!race && <div className="eyebrow">Room {g.room?.code}</div>}
+      {!race && <h2 className="sheet-h">The table</h2>}
+      {!race && <ul className="roster">
         {sortedPlayers(s).map((id) => (
           <li key={id}>
             <span className={`dot ${g.online.includes(id) ? "" : "off"}`} />
@@ -1084,12 +1124,12 @@ function TablePanel({ g }: { g: Game }) {
             )}
           </li>
         ))}
-      </ul>
-      <p className="muted-dark" style={{ fontSize: 14, margin: "0 0 14px" }}>
+      </ul>}
+      {!race && <p className="muted-dark" style={{ fontSize: 14, margin: "0 0 14px" }}>
         {s.mode === "split"
           ? "Evidence is split. Read your files out, or use Show all on a file to let everyone open it."
           : "Evidence is shared. Everyone sees every unlocked file."}
-      </p>
+      </p>}
 
       <div className="eyebrow" style={{ marginBottom: 8 }}>Table talk</div>
       <div className="chat" ref={listRef}>
@@ -1320,6 +1360,15 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
           </div>
           <span className="stamp" style={{ fontSize: 18, transform: "rotate(-6deg)", borderWidth: 3 }}>{right === 3 ? "Solved" : "Unsolved"}</span>
         </div>
+        {g.race && (
+          <p className="race-result">
+            {g.race.s.winner === g.race.me
+              ? "You won the race: first to close the case."
+              : right === 3
+                ? `You solved it, ${placeOf(g.race, g.race.me)} at the finish.`
+                : "Wrong accusation: you are out of the race."}
+          </p>
+        )}
         <hr className="double" />
         <table className="grid" style={{ fontSize: 13.5 }}>
           <tbody>
@@ -1633,7 +1682,7 @@ function SearchPanel({ g, onOpen }: { g: Game; onOpen: (exhibit: number) => void
 }
 
 /* ---------- how to play ---------- */
-function GuidePanel({ onClose }: { onClose: () => void }) {
+function GuidePanel({ onClose, race = false }: { onClose: () => void; race?: boolean }) {
   const items: [string, string][] = [
     ["Read the folder", "Each folder holds the exhibits for one round. Read them closely: times, names and small details matter."],
     ["Search the house", `Look round Hollow Pines room by room. Rooms give up more as new folders open. Each search costs ${COST.search} minutes.`],
@@ -1643,6 +1692,12 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
     ["Watch the clock", "The investigation clock starts at 09:05 on Sunday. Past a full working day, your rating starts to drop."],
     ["Accuse", "Name who, how and why, lock it, then prove it with five details. The Bureau rates your work out of 100."],
   ];
+  if (race)
+    items.push(
+      ["It's a race", "Everyone has their own copy of the case. The first to close it correctly wins. Standings show each racer's folder and clock."],
+      ["Theories", `Put up to ${THEORIES_PER_RACE} theories to the Bureau. It tells you which part your open folders already rule out, never which part is right. Each costs ${COST.theory} minutes.`],
+      ["One shot", "You get one accusation. Get it wrong and you're out of the race."],
+    );
   return (
     <div>
       <div className="eyebrow">The Bureau&apos;s method</div>
@@ -1655,6 +1710,140 @@ function GuidePanel({ onClose }: { onClose: () => void }) {
         ))}
       </ol>
       <button className="btn primary" onClick={onClose}>Open the file</button>
+    </div>
+  );
+}
+
+/* ---------- race mode ---------- */
+/** "1st", "2nd"... for a racer: correct finishers by time, then those still working by folder and clock, then those out */
+function standings(room: Game) {
+  const e = room.s.race ?? {};
+  const ids = Object.keys(room.s.players);
+  const rank = (id: string) => {
+    const r = e[id];
+    if (!r) return [3, 0, 0];
+    if (r.finishedAt && r.correct) return [0, r.finishedAt, 0];
+    if (!r.finishedAt) return [1, -r.round, r.spent];
+    return [2, r.finishedAt, 0];
+  };
+  return ids.sort((a, b) => {
+    const x = rank(a), y = rank(b);
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || a.localeCompare(b);
+  });
+}
+const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
+function placeOf(room: Game, id: string) {
+  const i = standings(room).indexOf(id);
+  return i < 0 ? "" : ordinal(i + 1);
+}
+
+function StandingsPanel({ g, room }: { g: Game; room: Game }) {
+  const e = room.s.race ?? {};
+  const order = standings(room);
+  const nm = (id: string) => `${room.s.players[id]?.name ?? "A player"}${id === room.me ? " (you)" : ""}`;
+  return (
+    <div>
+      <div className="eyebrow">Race · Room {room.room?.code}</div>
+      <h2 className="sheet-h">Standings</h2>
+      <ol className="standings">
+        {order.map((id, i) => {
+          const r = e[id];
+          const status = !r
+            ? "Opening the file"
+            : r.finishedAt && r.correct
+              ? room.s.winner === id
+                ? "Closed the case first"
+                : "Solved"
+              : r.finishedAt
+                ? "Out: wrong accusation"
+                : `Folder ${r.round} of ${room.c.rounds.length} · ${clockLabel(r.spent)}`;
+          return (
+            <li key={id} className={`${room.s.winner === id ? "won" : ""} ${r?.finishedAt && !r.correct ? "out" : ""}`}>
+              <span className="st-place">{ordinal(i + 1)}</span>
+              <span className={`dot ${room.online.includes(id) ? "" : "off"}`} />
+              <span className="st-name">{nm(id)}</span>
+              <span className="st-status">{status}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="muted-dark" style={{ fontSize: 13 }}>
+        First to close the case correctly wins. Your progress, clock and theories are your own; only your folder, clock and finish are shown here.
+        {g.s.finishedAt ? "" : " One accusation each."}
+      </p>
+      <TablePanel g={room} race />
+    </div>
+  );
+}
+
+function TheoryPanel({ g, locked }: { g: Game; locked: boolean }) {
+  const { c, s, priv, setPriv } = g;
+  const [v, setV] = useState<Vote>({ suspect: "", method: "", motive: "" });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const used = priv.theories ?? [];
+  const left = THEORIES_PER_RACE - used.length;
+  const lab = (list: { id: string; label: string }[], id: string) => list.find((x) => x.id === id)?.label ?? "";
+  const files = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
+  const ask = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await askTheory(c.id, v, s.tokens ?? {});
+      g.act({ t: "spend", min: COST.theory });
+      setPriv((x) => ({ ...x, theories: [...(x.theories ?? []), { vote: v, ...r }] }));
+      setV({ suspect: "", method: "", motive: "" });
+    } catch {
+      setErr("The Bureau could not be reached. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div>
+      <div className="eyebrow">Race · {left} of {THEORIES_PER_RACE} theories left · each costs {COST.theory} minutes</div>
+      <h2 className="sheet-h">Put a theory to the Bureau</h2>
+      <p className="muted-dark" style={{ marginTop: -4 }}>
+        Name who, how and why. If the folders you have opened rule any of it out, the Bureau tells you which part, and the exhibit
+        that proves it. It never confirms a theory.
+      </p>
+      {locked ? (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>Theories open after the briefing.</p>
+      ) : left > 0 && !s.finishedAt ? (
+        <>
+          <div className="theory-pick">
+            <select value={v.suspect} onChange={(e) => setV({ ...v, suspect: e.target.value })} aria-label="Who"><option value="">Who…</option>{c.suspects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+            <select value={v.method} onChange={(e) => setV({ ...v, method: e.target.value })} aria-label="How"><option value="">How…</option>{c.accusation.methods.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+            <select value={v.motive} onChange={(e) => setV({ ...v, motive: e.target.value })} aria-label="Why"><option value="">Why…</option>{c.accusation.motives.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+          </div>
+          <button className="btn primary" style={{ marginTop: 10 }} disabled={busy || !v.suspect || !v.method || !v.motive} onClick={ask}>{busy ? "Asking…" : "Put it to the Bureau"}</button>
+          {err && <p className="lookagain">{err}</p>}
+        </>
+      ) : (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>{s.finishedAt ? "Your case is closed." : "You have used all your theories for this race."}</p>
+      )}
+      {used.length > 0 && (
+        <>
+          <h2 className="sheet-h" style={{ marginTop: 22 }}>The Bureau&apos;s answers</h2>
+          <ul className="iv-log">
+            {[...used].reverse().map((t, i) => {
+              const f = t.exhibit ? files.find((x) => x.exhibit === t.exhibit) : undefined;
+              return (
+                <li key={i}>
+                  <div className="iv-q">
+                    {c.suspects.find((x) => x.id === t.vote.suspect)?.name} · {lab(c.accusation.methods, t.vote.method)} · {lab(c.accusation.motives, t.vote.motive)}
+                  </div>
+                  <div className="iv-a">
+                    {t.part ? <b>The {t.part === "suspect" ? "suspect" : t.part} is wrong. </b> : null}
+                    {t.text}
+                  </div>
+                  {f && <div className="iv-link muted-dark" style={{ cursor: "default" }}>Proved by Exhibit {f.exhibit} — {f.name}</div>}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

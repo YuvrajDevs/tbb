@@ -29,5 +29,7 @@ export const askSuspect = (caseId: string, who: string, topic: string, tokens: R
 export const fetchIntro = (caseId: string, who: string) => post<{ text: string }>(caseId, { op: "intro", who });
 export const searchRoom = (caseId: string, room: string, found: number[], tokens: Record<number, string>) =>
   post<{ index: number; text: string; exhibit?: number }>(caseId, { op: "search", room, found, tokens });
+export const askTheory = (caseId: string, vote: Vote, tokens: Record<number, string>) =>
+  post<{ part: "suspect" | "method" | "motive" | null; exhibit?: number; text: string }>(caseId, { op: "theory", vote, tokens });
 export const fetchVerdict = (caseId: string, vote: Vote, tokens: Record<number, string>) =>
   post<CaseResult>(caseId, { op: "verdict", vote, tokens });

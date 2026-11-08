@@ -24,6 +24,8 @@ export interface CaseSecret {
   solution: { suspect: string; method: string; motive: string; proofs: { clue: string; exhibit: number }[] };
   /** answers to the precise report questions (CaseFile.accusation.details) */
   details?: Record<string, string>;
+  /** race-mode theories: for each wrong option ("s:", "m:", "w:" + id), the exhibit that rules it out and its round */
+  disproof?: Record<string, { exhibit: number; round: number; text: string }>;
   /** narration files that would give answers away are stored under unguessable names */
   audio: Record<string, string>;
 }
@@ -242,6 +244,20 @@ export const case017: CaseSecret = {
     ]
   },
   "details": { "source": "hospital", "camera": "fast", "voices": "meera-call", "letter": "steamed", "pair": "meera-kapoor" },
+  "disproof": {
+    "s:arjun": { "exhibit": 19, "round": 3, "text": "Arjun was drinking at the Clocktower Bar until nearly midnight. He was not in the house when Vikram died." },
+    "s:kabir": { "exhibit": 15, "round": 2, "text": "Kabir's calls that night come from a tower in Dehradun. He was at the sangeet, an hour away." },
+    "s:kapoor": { "exhibit": 28, "round": 5, "text": "The gate recorder runs eighteen minutes fast. Dr. Kapoor's car really left at 21:40, before Vikram fell." },
+    "s:sunita": { "exhibit": 16, "round": 3, "text": "The fatal dose went into a vein at the elbow, the work of a trained hand. Sunita has no such training." },
+    "m:sleep": { "exhibit": 16, "round": 3, "text": "The post-mortem finds no zolpidem, benzodiazepines or alcohol in his blood. Nothing put him to sleep." },
+    "m:smother": { "exhibit": 16, "round": 3, "text": "The post-mortem gives the cause of death as a potassium injection into a vein, not suffocation." },
+    "m:digoxin": { "exhibit": 16, "round": 3, "text": "The post-mortem finds his heart medicines, metoprolol and apixaban, at ordinary therapeutic levels. No overdose." },
+    "m:natural": { "exhibit": 5, "round": 1, "text": "His watch logs a hard fall, an SOS cancelled by a tap, then no pulse. Someone was standing beside him." },
+    "w:will": { "exhibit": 26, "round": 4, "text": "The will had not changed and was not going to: nobody gained by killing him before Monday." },
+    "w:debt": { "exhibit": 22, "round": 4, "text": "The money that mattered was not a loan. It was the Trust's, paid out to a laboratory." },
+    "w:land": { "exhibit": 23, "round": 4, "text": "The lawyer's letter shows Monday's meeting was about the Trust's payments, not the land." },
+    "w:grudge": { "exhibit": 6, "round": 1, "text": "By her own account, and everyone else's, Vikram was fair to Sunita and paid her son's school fees." }
+  },
   "audio": {
     "V-01": "V-01.50b47098a573",
     "V-02": "V-02.43084ae28908",

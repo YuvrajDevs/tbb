@@ -4,7 +4,7 @@ import { ArrowLeft } from "@/components/Arrow";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { hollowPines } from "@/lib/cases/hollow-pines";
-import { NAME_KEY, roomNameKey, useRoomGame, type Game } from "@/lib/game/game";
+import { NAME_KEY, roomNameKey, useRaceGame, useRoomGame, type Game } from "@/lib/game/game";
 import { MAX_PLAYERS, sortedPlayers } from "@/lib/game/state";
 import { Desk } from "./Desk";
 import { accountsAvailable, useAuth } from "@/lib/account";
@@ -123,7 +123,15 @@ export function Room({ code }: { code: string }) {
   }
 
   if (game.s.phase === "lobby") return <Lobby g={game} />;
+  if (game.s.play === "race") return <RaceDesk room={game} />;
   return <Desk g={game} exitHref="/cases" />;
+}
+
+/** In a race every player works their own copy of the case; the room carries standings, chat and the winner. */
+function RaceDesk({ room }: { room: Game }) {
+  const g = useRaceGame(room.c, room);
+  if (!g) return <div style={{ padding: 40 }} className="eyebrow">Opening your file…</div>;
+  return <Desk g={g} exitHref="/cases" />;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -179,6 +187,25 @@ function Lobby({ g }: { g: Game }) {
         ))}
       </ul>
 
+      <div className="eyebrow" style={{ marginTop: 26 }}>How you play</div>
+      <div className="choices" style={{ marginTop: 8 }}>
+        {(["classic", "race"] as const).map((m) => (
+          <label key={m} className={`choice ${(s.play ?? "classic") === m ? "on" : ""} ${g.isHost ? "" : "readonly"}`}>
+            <input type="radio" name="play" checked={(s.play ?? "classic") === m} disabled={!g.isHost} onChange={() => g.act({ t: "setPlay", play: m })} />
+            <span>
+              <b>{m === "classic" ? "Classic: solve it together" : "Race: who solves it first"}</b>
+              <span className="muted-dark" style={{ display: "block", fontSize: 14 }}>
+                {m === "classic"
+                  ? "One shared case. The host reads, everyone investigates, the table answers and accuses together."
+                  : "Everyone gets their own copy of the case. Put theories to the Bureau, watch the standings, and be first to name the killer. One accusation each: get it wrong and you're out."}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {(s.play ?? "classic") === "classic" && (
+        <>
       <div className="eyebrow" style={{ marginTop: 26 }}>Evidence</div>
       <div className="choices" style={{ marginTop: 8 }}>
         {(["shared", "split"] as const).map((m) => (
@@ -197,12 +224,16 @@ function Lobby({ g }: { g: Game }) {
         <input type="checkbox" checked={s.timerEnabled} disabled={!g.isHost} onChange={() => g.act({ t: "setTimer", on: !s.timerEnabled })} />
         <span><b>Round timers.</b> A shared countdown of 20 to 25 minutes per round.</span>
       </label>
+        </>
+      )}
 
       <div style={{ marginTop: 26, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         {g.isHost ? (
           <>
-            <button className="btn primary" onClick={() => g.act({ t: "start" })}>Start case</button>
-            <span className="muted-dark" style={{ fontSize: 14 }}>{here.length < 2 ? "Best with 2 to 6 players. You can start alone." : "Everyone joins the same line of the story."}</span>
+            <button className="btn primary" disabled={s.play === "race" && here.length < 2} onClick={() => g.act({ t: "start" })}>{s.play === "race" ? "Start the race" : "Start case"}</button>
+            <span className="muted-dark" style={{ fontSize: 14 }}>
+              {s.play === "race" ? (here.length < 2 ? "A race needs at least 2 players." : "Everyone starts the clock together.") : here.length < 2 ? "Best with 2 to 6 players. You can start alone." : "Everyone joins the same line of the story."}
+            </span>
           </>
         ) : (
           <span className="muted-dark">Waiting for {s.players[s.hostId]?.name ?? "the host"} to start the case.</span>

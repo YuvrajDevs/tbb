@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ask, check, hint, interviewIntro, search, skip, verdict, type Vote } from "@/lib/server/judge";
+import { ask, check, hint, interviewIntro, search, skip, theory, verdict, type Vote } from "@/lib/server/judge";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
  *   { op: "ask", who, topic, tokens }  -> { text, known }: an interview answer ("p:<person>" or "e:<exhibit>")
  *   { op: "intro", who }               -> { text }: how an interview opens
  *   { op: "search", room, found, tokens } -> { index, text }: the next finding in a room
+ *   { op: "theory", vote, tokens }     -> { part, exhibit, text }: race mode, one wrong part ruled out
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,6 +39,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const r = ask(id, str(body.who), str(body.topic), (body.tokens ?? {}) as Record<string, unknown>);
       if (r === "locked") return NextResponse.json({ error: "that folder is still sealed" }, { status: 403 });
       out = r;
+      break;
+    }
+    case "theory": {
+      const v = (body.vote ?? {}) as Record<string, unknown>;
+      out = theory(id, { suspect: str(v.suspect), method: str(v.method), motive: str(v.motive) }, (body.tokens ?? {}) as Record<string, unknown>);
       break;
     }
     case "search": {
