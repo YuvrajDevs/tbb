@@ -40,8 +40,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       break;
     }
     case "intro": {
-      const t = interviewIntro(id, str(body.who));
-      out = t ? { text: t } : null;
+      out = interviewIntro(id, str(body.who));
       break;
     }
     case "verdict": {

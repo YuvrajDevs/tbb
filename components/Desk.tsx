@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
+import { allSolved, CLOCK_START, COST, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { askSuspect, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
@@ -316,6 +316,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           </div>
         </div>
         <div className="desk-actions">
+          <InvestigationClock spent={s.spent ?? 0} />
           {s.timerEnabled && !solvedAll && (
             <TimerChip g={g} round={current} onTimeUp={() => go("checkpoint")} onUp={() => toast(`Time is up for round ${s.unlocked}. Answer the checkpoint when you are ready.`, { label: "Checkpoint", run: () => setPanel("checkpoint") })} />
           )}
@@ -1243,6 +1244,9 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
   const suspect = c.suspects.find((x) => x.id === a?.suspect);
   const real = c.suspects.find((x) => x.id === solution.suspect)!;
   const det = s.result.details ?? [];
+  // the investigation clock: anything past a working day (8 hours) costs a point per half hour, up to 10
+  const spentMin = s.spent ?? 0;
+  const overTime = Math.min(10, Math.max(0, Math.floor((spentMin - 480) / 30)));
   const detRight = det.filter((d) => d.correct).length;
   // the notebook grid against the truth: the right options marked likely, the wrong ones ruled out
   const gridItems = [
@@ -1259,7 +1263,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
     0,
     Math.min(
       100,
-      Math.round((parts[0] ? 30 : 0) + (parts[1] ? 15 : 0) + (parts[2] ? 15 : 0) + (det.length ? (30 * detRight) / det.length : 30) + (10 * gridRight) / gridItems.length - hints * 3 - skipped * 5),
+      Math.round((parts[0] ? 30 : 0) + (parts[1] ? 15 : 0) + (parts[2] ? 15 : 0) + (det.length ? (30 * detRight) / det.length : 30) + (10 * gridRight) / gridItems.length - hints * 3 - skipped * 5 - overTime),
     ),
   );
   const grade = rating >= 90 ? "Distinction" : rating >= 75 ? "Commended" : rating >= 55 ? "Satisfactory" : rating >= 35 ? "Under review" : "Unfit for the field";
@@ -1309,6 +1313,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginTop: 18, textAlign: "center" }}>
           <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 16 }}>{verdict}</div></div>
           <div><div className="small muted">BUREAU RATING</div><div className="serif" style={{ fontSize: 17 }}>{rating} / 100</div><div className="small muted" style={{ marginTop: 2 }}>{grade}</div></div>
+          <div><div className="small muted">CASE CLOSED AT</div><div className="serif" style={{ fontSize: 15 }}>{clockLabel(spentMin)}</div><div className="small muted" style={{ marginTop: 2 }}>{Math.floor(spentMin / 60)}h {spentMin % 60}m of work</div></div>
           <div><div className="small muted">QUESTIONS ASKED</div><div className="serif" style={{ fontSize: 17 }}>{Object.keys(g.priv.interviews ?? {}).length}</div></div>
           <div><div className="small muted">YOUR GRID</div><div className="serif" style={{ fontSize: 17 }}>{gridRight} of {gridItems.length}</div></div>
           <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
@@ -1385,7 +1390,19 @@ function BriefingStill({ src }: { src: string }) {
 function InterviewPanel({ g }: { g: Game }) {
   const { c, s, priv, setPriv } = g;
   const [who, setWho] = useState(c.suspects[0].id);
-  const [intros, setIntros] = useState<Record<string, string>>({});
+  const [intros, setIntros] = useState<Record<string, { text: string; src: string }>>({});
+  const [playing, setPlaying] = useState<string | null>(null);
+  // only the dialogue is recorded; stage directions stay as captions
+  const spokenPart = (t: string) => {
+    const q = t.match(/(?:^|(?<=[.!?] ))'(.+?)'(?= [A-Z]|$)/g);
+    return q ? q.map((x) => x.slice(1, -1)).join(" ") : t;
+  };
+  const play = (key: string, text: string, src?: string) => {
+    if (!priv.voice) return;
+    setPlaying(key);
+    speakLine(c.id, `iv-${key}`, spokenPart(text), () => setPlaying((p) => (p === key ? null : p)), src);
+  };
+  useEffect(() => () => stopNarration(), []);
   const [exhibit, setExhibit] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -1393,7 +1410,10 @@ function InterviewPanel({ g }: { g: Game }) {
   const heard = priv.interviews ?? {};
   useEffect(() => {
     if (intros[who]) return;
-    fetchIntro(c.id, who).then((r) => setIntros((x) => ({ ...x, [who]: r.text }))).catch(() => {});
+    fetchIntro(c.id, who).then((r) => {
+      setIntros((x) => ({ ...x, [who]: r }));
+      play(`${who}|intro`, r.text, r.src);
+    }).catch(() => {});
   }, [who, intros, c.id]);
   const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name }))];
   const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
@@ -1409,7 +1429,9 @@ function InterviewPanel({ g }: { g: Game }) {
     setErr("");
     try {
       const r = await askSuspect(c.id, who, topic, s.tokens ?? {});
-      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
+      g.act({ t: "spend", min: COST.question });
+      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text }, interviewAudio: { ...(x.interviewAudio ?? {}), [key]: r.src } }));
+      play(key, r.text, r.src);
     } catch {
       setErr("The interview room could not be reached. Try again.");
     } finally {
@@ -1420,7 +1442,7 @@ function InterviewPanel({ g }: { g: Game }) {
   const asked = Object.keys(heard).length;
   return (
     <div>
-      <div className="eyebrow">Interviews · {asked} {asked === 1 ? "question" : "questions"} asked</div>
+      <div className="eyebrow">Interviews · {asked} {asked === 1 ? "question" : "questions"} asked · each costs {COST.question} minutes</div>
       <h2 className="sheet-h">Who do you want to see?</h2>
       <div className="iv-people">
         {c.suspects.map((x) => (
@@ -1430,7 +1452,7 @@ function InterviewPanel({ g }: { g: Game }) {
           </button>
         ))}
       </div>
-      <p className="iv-intro">{intros[who] ?? "…"}</p>
+      <p className="iv-intro">{intros[who]?.text ?? "…"}</p>
       <div className="eyebrow" style={{ marginTop: 14 }}>Ask about</div>
       <div className="iv-chips">
         {people.map((p) => {
@@ -1468,12 +1490,34 @@ function InterviewPanel({ g }: { g: Game }) {
         <ul className="iv-log">
           {transcript.map(([k, text]) => (
             <li key={k}>
-              <div className="iv-q">{topicLabel(k.split("|")[1])}</div>
+              <div className="iv-q">
+                {topicLabel(k.split("|")[1])}
+                {priv.voice && priv.interviewAudio?.[k] && (
+                  <button className="iv-play" onClick={() => play(k, text, priv.interviewAudio?.[k])} aria-label="Play this answer again">
+                    {playing === k ? "▶ playing" : "▶ play"}
+                  </button>
+                )}
+              </div>
               <div className="iv-a">{text}</div>
             </li>
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+/* ---------- the investigation clock: Sunday 09:05 plus every minute spent on questions, searches, hints and mistakes ---------- */
+export const clockLabel = (spent: number) => {
+  const d = new Date(CLOCK_START + spent * 60000);
+  const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+  return `${day} · ${time}`;
+};
+function InvestigationClock({ spent }: { spent: number }) {
+  return (
+    <span className="inv-clock hide-sm" title={`Investigation clock. Questions cost ${COST.question} min, searches ${COST.search}, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
+      {clockLabel(spent).toUpperCase()}
+    </span>
   );
 }

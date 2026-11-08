@@ -16,6 +16,8 @@ export interface Shared {
   unlocked: number;
   solved: Record<number, "correct" | "skipped">;
   wrongTries: Record<number, number>;
+  /** minutes on the investigation clock: questions, searches, hints and wrong answers cost time */
+  spent?: number;
   lastAnswer: { round: number; choice: string; correct: boolean; at: number } | null;
   roundStartedAt: Record<number, number>;
   narration: { script: string; line: number };
@@ -71,6 +73,8 @@ export interface Private {
   grid?: Record<string, GridMark>;
   /** interview answers this device has heard, keyed "<person>|<topic>", in the order they were asked */
   interviews?: Record<string, string>;
+  /** the recording for each heard answer, same keys */
+  interviewAudio?: Record<string, string>;
 }
 
 export type GridMark = "out" | "maybe" | "likely";
@@ -126,10 +130,17 @@ export type Action =
   | { t: "say"; text: string }
   | { t: "suggest"; choice: string }
   | { t: "point"; fileId: string }
-  | { t: "show"; fileId: string };
+  | { t: "show"; fileId: string }
+  /** time on the investigation clock for a question or a search */
+  | { t: "spend"; min: number };
 
 /** Actions any player may send. Everything else is the host's. */
-const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show"];
+const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend"];
+
+/** What each kind of work costs on the investigation clock, in minutes. */
+export const COST = { question: 15, search: 20, hint: 30, wrong: 20 } as const;
+/** The clock starts when the Bureau takes the case: Sunday 11 October 2026, 09:05. */
+export const CLOCK_START = Date.UTC(2026, 9, 11, 9, 5);
 
 export interface Ctx {
   now: number;
@@ -263,7 +274,7 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       if (!r || !r.checkpoint.choices.some((ch) => ch.id === a.choice)) return s;
       const correct = !!a.res?.correct;
       const lastAnswer = { round: a.round, choice: a.choice, correct, at: ctx.now };
-      if (!correct) return bump({ lastAnswer, wrongTries: { ...s.wrongTries, [a.round]: (s.wrongTries[a.round] ?? 0) + 1 } });
+      if (!correct) return bump({ lastAnswer, wrongTries: { ...s.wrongTries, [a.round]: (s.wrongTries[a.round] ?? 0) + 1 }, spent: (s.spent ?? 0) + COST.wrong });
       const final = a.round === lastRound(c);
       return bump({
         lastAnswer,
@@ -298,7 +309,10 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       });
     }
     case "hint":
-      return bump({ hints: { ...s.hints, [actor]: (s.hints[actor] ?? 0) + 1 } });
+      return bump({ hints: { ...s.hints, [actor]: (s.hints[actor] ?? 0) + 1 }, spent: (s.spent ?? 0) + COST.hint });
+    case "spend":
+      if (s.phase !== "play" || s.finishedAt || !s.players[actor]) return s;
+      return bump({ spent: (s.spent ?? 0) + Math.max(0, Math.min(60, Math.round(a.min))) });
     case "vote": {
       if (!s.players[actor] || s.finishedAt || !allSolved(c, s)) return s;
       return bump({ votes: { ...s.votes, [actor]: a.vote } });

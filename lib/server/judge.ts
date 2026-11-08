@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import type { CaseResult, CheckResult, HintResult, NarrationLine } from "@/lib/types";
 import { case017, type CaseSecret } from "./case-017";
 import { interviews017, type Interview } from "./interviews-017";
@@ -88,7 +88,11 @@ const INTERVIEWS: Record<string, Record<string, Interview>> = { "017": interview
  * What a person says about a topic: "p:<person>" or "e:<exhibit>". An exhibit can only be shown once its folder is
  * open, proven by the token of the round before it.
  */
-export function ask(caseId: string, who: string, topic: string, tokens: Record<string, unknown>): { text: string; known: boolean } | "locked" | null {
+/** recorded interview lines live under names nobody can guess from the topic (see reel/scripts/interviews/gen.py) */
+const ivAudio = (caseId: string, who: string, key: string) =>
+  `/cases/${caseId}/interviews/${createHash("sha256").update(`iv${caseId}:${who}|${key}`).digest("hex").slice(0, 16)}.mp3`;
+
+export function ask(caseId: string, who: string, topic: string, tokens: Record<string, unknown>): { text: string; known: boolean; src: string } | "locked" | null {
   const iv = INTERVIEWS[caseId]?.[who];
   const c = cases[caseId];
   if (!iv || !c) return null;
@@ -99,10 +103,14 @@ export function ask(caseId: string, who: string, topic: string, tokens: Record<s
     if (round.number > 1 && !tokenOk(caseId, round.number - 1, tokens?.[round.number - 1])) return "locked";
   } else if (!topic.startsWith("p:")) return null;
   const said = iv.topics[topic];
-  if (said) return { text: said, known: true };
+  if (said) return { text: said, known: true, src: ivAudio(caseId, who, topic) };
   // a steady fallback for the same topic, so asking twice gives the same answer
   const h = [...topic].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7);
-  return { text: iv.fallback[Math.abs(h) % iv.fallback.length], known: false };
+  const i = Math.abs(h) % iv.fallback.length;
+  return { text: iv.fallback[i], known: false, src: ivAudio(caseId, who, `fb:${i}`) };
 }
 
-export const interviewIntro = (caseId: string, who: string) => INTERVIEWS[caseId]?.[who]?.intro ?? null;
+export const interviewIntro = (caseId: string, who: string) => {
+  const t = INTERVIEWS[caseId]?.[who]?.intro;
+  return t ? { text: t, src: ivAudio(caseId, who, "intro") } : null;
+};

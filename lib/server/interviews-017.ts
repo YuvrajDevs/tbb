@@ -38,7 +38,7 @@ export const interviews017: Record<string, Interview> = {
       "e:27": "I've said what I said. Envelopes come unstuck in this damp. Everything does.",
       "e:32": "Her composure slips. 'I couldn't sleep, so I rang my brother. Is that a crime?' She doesn't say who her brother is.",
       "e:33": "Yes, I was an ICU sister. That is how Vikram and I met, in 2014. I used my family name before I married.",
-      "e:34": "Our wedding. Anand gave me away. My father had passed by then. She folds her hands and says nothing more.",
+      "e:34": "'Our wedding. Anand gave me away. My father had passed by then.' She folds her hands and says nothing more.",
     },
   },
   arjun: {
