@@ -47,6 +47,14 @@ Voicemail script (as recorded):
 00:17  [end]
 ```
 
+## Briefing photos — `public/cases/017/briefing/`
+
+One photo per briefing line, shown in the empty viewer while the briefing plays (once per player), with a slow camera
+move. In place (8 Nov 2026), WebP about 1600 px wide: `I-01` agency desk at night, `I-02` the victim's desk with cold tea,
+`I-03` case papers from above, `B-01` Hollow Pines in mist, `B-02` the armchair (hand and glasses only, no face),
+`B-03` doctor's bag and note, `B-04` five sealed envelopes, `B-05` evidence board, `B-06` a hand opening the folder.
+Rules: photorealistic, documentary, no faces, no readable text, nothing that gives the solution away.
+
 ## Narration — `public/cases/017/narration/`
 
 One MP3 per line, named by the line ID. The narrator is a calm, low game-master voice: it states

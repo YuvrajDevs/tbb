@@ -1,6 +1,6 @@
 # The Blackwood Bureau — status and handoff
 
-Last updated: 4 Nov 2026. Branch: `main` on `YuvrajDevs/tbb`.
+Last updated: 9 Nov 2026. Branch: `main` on `YuvrajDevs/tbb`.
 
 Read with: the PRD (original PDF, not in the repo), `README.md`, `docs/CASE-017-BIBLE.md` (solution, spoilers),
 `docs/ASSETS.md` (media to supply), `docs/mockups/` (UI showcase images).
@@ -17,29 +17,33 @@ The owner likes the current UI — keep it.
 
 ## Done
 
-- **Screens:** case shelf (one open case + "more cases being written" card), case cover (solo / party room / print kit),
-  case desk, party lobby, join-by-code page, print kit (host guide, envelope labels, all exhibits, case board, sealed solution).
-- **Case desk:** folders per round (closed / open / locked / new), file list or grid, document viewer with zoom,
-  narration bar (captions, line IDs, replay, voice), round timers, checkpoints with "Look again" and skip after 3 tries,
-  3-level private hints, private notebook with suspect marks, accusation (who / how / why), line-by-line reveal, report card.
-- **Evidence:** every exhibit drawn in code as a real document (`components/evidence/round1..5.tsx`).
-  Photos and audio are slots for owner-supplied files with labelled placeholders (`components/Media.tsx`).
-  No video by design.
-- **Party rooms:**
-  - Host controls narration, submits checkpoint answers, opens folders, submits the accusation.
-  - Shared or split evidence. In split mode a holder can "Show all" a file.
-  - Built for players in different places: table chat with unread badge, suggested checkpoint answers shown to the
-    host by name, "point the table to this exhibit", votes with names, confirmation if votes are missing, event toasts.
-  - Robustness: host-authoritative versioned state; player actions queued, numbered and retried until acknowledged
-    (no loss, no double-apply); heartbeat catch-up; host loss pauses the room and hands control to the next joiner;
-    manual host hand-over; timers corrected for clock skew; closed tab reopens into the same seat; same name on a new
-    device reclaims the seat; duplicate names numbered ("Bilal 2"); room survives everyone leaving; host can remove
-    players in the lobby; 7th player told the room is full.
-- **Phones:** bottom tab bar (Files, Notebook, Hints, Table, Accuse), bottom sheets, folder strip, collapsible
-  narration, 44px+ targets, every exhibit fits a 390px screen.
-- **Tests** (`tests/e2e/`, Playwright, each player a separate browser context through a lossy relay):
-  solo 21 checks, mobile 32, two devices 19, four-to-six devices 18 — all passing, zero page errors.
-  Run instructions in `README.md`.
+- **Live:** https://www.theblackwoodbureau.com on Vercel (apex redirects to www). Supabase project "the blackwood bureau"
+  for Google sign-in, saved solo progress (`solo_progress`), case history, ratings and client errors; party rooms run on
+  Supabase Realtime broadcast channels (nothing stored). Google sign-in branding is verified.
+- **Screens:** landing page (with the Instagram tip line), case shelf, case cover (solo / party room / print kit), case desk,
+  party lobby, join-by-code, print kit, account page, privacy and terms.
+- **Case desk:**
+  - Folders per round, file list or grid, document viewer with zoom, narration dock (fixed two-line height, captions, replay, voice).
+  - **Briefing:** a photo per narration line (`public/cases/017/briefing/`) with a slow camera move and a dissolve; played once
+    per player. Folder 1 stays sealed until the briefing ends ("Skip the briefing" available).
+  - Checkpoints with "Look again" and skip after 3 tries; 3-level private hints; round timer, off by default (Settings).
+  - **Investigation clock** (top bar): starts Sun 11 Oct 09:05; questions cost 15 min, searches 20, hints 30, wrong answers 20.
+  - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
+    served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
+  - **Search the house:** seven rooms on a simple plan; findings released by the server as folders open (`lib/server/search-017.ts`).
+  - **Notebook:** deduction grid (who / how / why: ruled out, possible, likely), notes, starred exhibits.
+  - **Accusation:** pick who, how and why, lock it, then answer five scored detail questions (answers server-side).
+  - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
+    Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).
+- **Content protection:** checkpoint answers, hints, the solution, the reveal, the detail answers, interview answers and
+  search findings all live server-side (`lib/server/`) and are released against signed round tokens.
+- **Evidence:** every exhibit drawn in code (`components/evidence/round1..5.tsx`); photos and audio supplied (see ASSETS.md).
+- **Party rooms:** host controls narration, answers and the accusation; shared or split evidence; table chat; point the table
+  to an exhibit; **theories** (put who/how/why to the table; others answer privately with one exhibit that disproves it);
+  votes; host hand-over and the rest of the robustness work listed in git history.
+- **Phones:** bottom tab bar (Files, Search, Interview, Notebook, Hints, Table, Accuse), bottom sheets.
+- **Tests** (`tests/e2e/`, Playwright): the original suites predate the new mechanics; new features were checked by hand in
+  headless browsers.
 
 ## Architecture in one paragraph
 
@@ -52,27 +56,7 @@ else the relay (`NEXT_PUBLIC_ROOM_RELAY`, `scripts/relay.mjs`), else same-browse
 
 ## Left to do
 
-**Blocking real cross-phone play**
-1. **Supabase project.** Not created; the owner said "not now". Rooms between separate phones need it
-   (or the self-hosted relay). The Supabase transport code exists but has **never been run against a real project** —
-   test it end to end once keys exist (`tests/e2e/remote-*.js` can be pointed at a build with Supabase keys).
-2. **Deploy.** Not deployed anywhere yet (Vercel is the natural fit; the relay does not run on Vercel serverless).
-
-**Owner supplies**
-3. Media per `docs/ASSETS.md`: 5 photos, 1 voicemail, 32 narration MP3s, into `public/cases/017/`.
-
-**Deferred by the owner**
-4. Payments (Razorpay), accounts, purchases, cross-device progress for solo.
-5. "More cases coming soon" marketing beyond the current placeholder card.
-
-**From the PRD, not built yet**
-6. Case kit as a per-buyer watermarked ZIP (today it is a print page).
-7. Content protection: answers and solution ship in the client bundle; should load only after each checkpoint (server).
-8. Hindi / Hinglish versions; Android wrapper; PWA install.
-
-**Known behaviours / small gaps**
-- If the host's phone locks for more than ~12 s, host control passes to the next player (PRD rule). They can be made host again from the Table.
-- Same-browser fallback mode: a second tab joins as "Name 2" (only affects the no-Supabase mode).
-- Narration falls back to the device voice until recordings exist.
-- No analytics, no rating prompt after the reveal (PRD metric: average rating).
-- Playtesting with real groups (PRD: at least 3 groups) has not happened.
+- Payments, per-buyer watermarked kit ZIP, Hindi / Hinglish, Android wrapper / PWA (from the PRD, not started).
+- Extend `tests/e2e/` to cover interviews, search, the clock, theories, the grid and the two-step accusation.
+- Playtesting with real groups.
+- Marketing material lives in `reel/` (reels, carousel, brand exports); it is gitignored on purpose.
