@@ -153,15 +153,15 @@ export const hollowPines: CaseFile = {
   ],
   narration: {
     briefing: [
-      { id: "I-01", text: "This is the Blackwood Bureau. You have been handed Case Number zero one seven: The Silence at Hollow Pines." },
-      { id: "I-02", text: "A wealthy man is dead in his study, and everyone around him agrees it was his heart. The local police are not so sure. That is why the file is on your desk." },
-      { id: "I-03", text: "Listen to the briefing. Then read every exhibit, test every statement, and trust nothing that you cannot prove." },
-      { id: "B-01", text: "Mussoorie. Sunday, the eleventh of October. The mist has not lifted from Camel's Back Road, and at Hollow Pines the curtains of the study are still drawn." },
-      { id: "B-02", text: "At ten past seven, the housekeeper found Vikram Singh Rathore in his armchair, cold, his reading glasses in his lap." },
-      { id: "B-03", text: "His doctor of twenty years called it his heart. The inspector called the Bureau." },
-      { id: "B-04", text: "Your file has five envelopes. Each round, one opens. At the end of each, a single question stands between you and the next." },
-      { id: "B-05", text: "Find who killed him, how it was done, and why. Everything you need is in the evidence. I will not tell you what it means." },
-      { id: "B-06", text: "Open folder one." },
+      { id: "I-01", image: "/cases/017/briefing/I-01.webp", text: "This is the Blackwood Bureau. You have been handed Case Number zero one seven: The Silence at Hollow Pines." },
+      { id: "I-02", image: "/cases/017/briefing/I-02.webp", text: "A wealthy man is dead in his study, and everyone around him agrees it was his heart. The local police are not so sure. That is why the file is on your desk." },
+      { id: "I-03", image: "/cases/017/briefing/I-03.webp", text: "Listen to the briefing. Then read every exhibit, test every statement, and trust nothing that you cannot prove." },
+      { id: "B-01", image: "/cases/017/briefing/B-01.webp", text: "Mussoorie. Sunday, the eleventh of October. The mist has not lifted from Camel's Back Road, and at Hollow Pines the curtains of the study are still drawn." },
+      { id: "B-02", image: "/cases/017/briefing/B-02.webp", text: "At ten past seven, the housekeeper found Vikram Singh Rathore in his armchair, cold, his reading glasses in his lap." },
+      { id: "B-03", image: "/cases/017/briefing/B-03.webp", text: "His doctor of twenty years called it his heart. The inspector called the Bureau." },
+      { id: "B-04", image: "/cases/017/briefing/B-04.webp", text: "Your file has five envelopes. Each round, one opens. At the end of each, a single question stands between you and the next." },
+      { id: "B-05", image: "/cases/017/briefing/B-05.webp", text: "Find who killed him, how it was done, and why. Everything you need is in the evidence. I will not tell you what it means." },
+      { id: "B-06", image: "/cases/017/briefing/B-06.webp", text: "Open folder one." },
     ],
     rounds: {
       2: [

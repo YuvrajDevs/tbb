@@ -112,7 +112,8 @@ export function FileIcon({ type, size = 28 }: { type: FileType; size?: number })
 }
 
 export const Glyph = {
-  gear: <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" strokeWidth="1.4" /></svg>,
+  // settings: three sliders (the old gear read as a sun)
+  gear: <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"><path d="M2 4h7M12 4h2M2 8h2M7 8h7M2 12h8M13 12h1" /><circle cx="10.5" cy="4" r="1.5" /><circle cx="5.5" cy="8" r="1.5" /><circle cx="11.5" cy="12" r="1.5" /></svg>,
   files: <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 5.5Q2 4 3.5 4H8l1.5 2h7Q18 6 18 7.5v7Q18 16 16.5 16h-13Q2 16 2 14.5Z" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg>,
   notes: <svg width="20" height="20" viewBox="0 0 20 20"><rect x="4" y="2.5" width="12" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.3" /></svg>,
   hint: <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 2.5a5 5 0 0 0-3 9v2h6v-2a5 5 0 0 0-3-9Z" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M7.5 16.5h5" stroke="currentColor" strokeWidth="1.4" /></svg>,

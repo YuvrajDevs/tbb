@@ -34,6 +34,8 @@ export interface NarrationLine {
   text: string;
   /** audio path when it is not the default /cases/<id>/narration/<id>.mp3 (server-issued lines) */
   src?: string;
+  /** a still shown in the empty viewer while this line is read (briefing), under /public */
+  image?: string;
 }
 
 /** What the server says about a checkpoint answer. `token` proves the round was closed, for the verdict. */

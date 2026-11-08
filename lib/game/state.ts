@@ -65,6 +65,8 @@ export interface Private {
   voice: boolean;
   /** newest table-chat message this device has seen */
   chatReadAt?: number;
+  /** set once the briefing has reached its last line: its photos never play again and folder 1 stays open */
+  briefed?: boolean;
 }
 
 export const emptyPrivate = (): Private => ({ viewed: [], starred: [], notes: "", suspects: {}, hintsUsed: {}, voice: true });
@@ -79,7 +81,7 @@ export function newShared(c: CaseFile, hostId: string, hostName: string, solo: b
     hostId,
     players: { [hostId]: { name: hostName, joinedAt: now } },
     mode: "shared",
-    timerEnabled: true,
+    timerEnabled: false, // the round timer is opt-in, from Settings
     startedAt: solo ? now : null,
     unlocked: 1,
     solved: {},

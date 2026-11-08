@@ -177,6 +177,25 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   /* ---------- narration ---------- */
   const lines = scriptLines(c, s.narration.script, s);
   const line = lines[Math.min(s.narration.line, lines.length - 1)];
+  // Folder 1 stays sealed until the briefing reaches its last line ("Open folder one."). A player who has
+  // already read a file (a saved game) is never locked out again.
+  const briefingAtEnd = s.narration.script === "briefing" && s.narration.line >= lines.length - 1;
+  const briefed = !!priv.briefed || s.unlocked > 1 || priv.viewed.length > 0;
+  useEffect(() => {
+    if (briefingAtEnd && !priv.briefed) setPriv((x) => ({ ...x, briefed: true }));
+  }, [briefingAtEnd, priv.briefed, setPriv]);
+  const inBriefing = !briefed && s.narration.script === "briefing" && !briefingAtEnd;
+  // The photos play with the first listen only. They stay on the last one until a file is opened; once the
+  // briefing has ended, stepping back through the narration (now or in a later visit) is voice and captions alone.
+  const [slideshow, setSlideshow] = useState(!briefed);
+  const reachedEnd = useRef(false);
+  useEffect(() => {
+    if (!slideshow) return;
+    if (priv.viewed.length > 0) setSlideshow(false);
+    else if (briefingAtEnd) reachedEnd.current = true;
+    else if (reachedEnd.current || s.narration.script !== "briefing") setSlideshow(false);
+  }, [slideshow, briefingAtEnd, s.narration.script, priv.viewed.length]);
+  const briefImage = slideshow && s.narration.script === "briefing" ? line?.image : undefined;
   const spoken = useRef<string>("");
   // Continuous play: when a line finishes, the next one starts on its own (host or solo moves the
   // narration for everyone). Stops at the end of each script, e.g. at "Open folder one."
@@ -266,6 +285,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
 
   const folderState = (r: Round): FolderState => {
     if (r.number > s.unlocked) return "locked";
+    if (inBriefing && r.number === 1) return "locked";
     if (folder === r.number) return "open";
     if (r.files.some((f) => canOpen(f) && !priv.viewed.includes(f.id))) return "new";
     return "closed";
@@ -360,7 +380,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   <FolderIcon state={st} size={64} label={`ENV. ${r.number}`} />
                   <div className="folder-label">
                     <span>Round {r.number}</span>
-                    <span className="t">{st === "locked" ? "Sealed" : r.title}</span>
+                    <span className="t">{st === "locked" ? (inBriefing && r.number === 1 ? "After the briefing" : "Sealed") : r.title}</span>
                   </div>
                   {s.solved[r.number] && <span className="tick">{s.solved[r.number] === "correct" ? "SOLVED" : "SKIPPED"}</span>}
                 </button>
@@ -368,6 +388,13 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
             })}
           </div>
 
+          {inBriefing ? (
+            <div className="files files-wait">
+              <div className="eyebrow">Envelope 1 · sealed</div>
+              <p>Listen to the briefing. The first folder opens when it ends.</p>
+              <button className="btn sm ghost" onClick={() => { for (let i = s.narration.line; i < lines.length - 1; i++) g.act({ t: "line", d: 1 }); }}>Skip the briefing</button>
+            </div>
+          ) : (
           <div className="files">
             <div className="files-head">
               <div>
@@ -435,6 +462,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
             )}
             <CheckpointStrip g={g} round={activeRound} onOpen={() => go("checkpoint")} />
           </div>
+          )}
         </section>
 
         {/* ---------- viewer ---------- */}
@@ -472,6 +500,8 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 {canOpen(openFile) ? <Evidence file={openFile} /> : <p className="muted-dark">This file is now held by another player.</p>}
               </ZoomBox>
             </div>
+          ) : briefImage ? (
+            <BriefingStill src={briefImage} />
           ) : (
             <div className="empty">
               <div className="eyebrow">No file open</div>
@@ -1187,6 +1217,26 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         <button className="btn" onClick={onClose}>Back to the evidence</button>
         <Link className="btn ghost" href="/cases">Case archive</Link>
       </div>
+    </div>
+  );
+}
+
+/* ---------- the briefing stills: one photograph per narration line, with a slow camera move ---------- */
+const MOVES = ["push", "pan-l", "pull", "pan-r", "lens", "rise"];
+function BriefingStill({ src }: { src: string }) {
+  // keep the previous still underneath so the new one dissolves over it
+  const [shown, setShown] = useState<{ src: string; prev: string | null }>({ src, prev: null });
+  useEffect(() => {
+    setShown((x) => (x.src === src ? x : { src, prev: x.src }));
+  }, [src]);
+  const move = MOVES[Math.abs([...shown.src].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7)) % MOVES.length];
+  return (
+    <div className="brief-still" aria-hidden="true">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {shown.prev && <img key={`p-${shown.prev}`} className="brief-img prev" src={shown.prev} alt="" />}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img key={shown.src} className={`brief-img now m-${move}`} src={shown.src} alt="" />
+      <div className="brief-vignette" />
     </div>
   );
 }
