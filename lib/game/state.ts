@@ -78,6 +78,12 @@ export interface Private {
   /** what this device has found searching the house: room -> finding indexes, and "room:index" -> text */
   searched?: Record<string, number[]>;
   findings?: Record<string, string>;
+  /** the exhibit a finding points to, same keys as findings */
+  findingExhibit?: Record<string, number>;
+  /** the how-to-play guide has been shown once */
+  guided?: boolean;
+  /** late-clock notices already given ("8h", "midnight") */
+  clockNotes?: string[];
 }
 
 export type GridMark = "out" | "maybe" | "likely";

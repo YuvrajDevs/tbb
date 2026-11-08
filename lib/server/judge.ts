@@ -112,7 +112,7 @@ export const interviewIntro = (caseId: string, who: string) => {
 };
 
 /* ---------- searching the house ---------- */
-const SEARCHES: Record<string, Record<string, { round: number; text: string }[]>> = { "017": search017 };
+const SEARCHES: Record<string, Record<string, { round: number; text: string; exhibit?: number }[]>> = { "017": search017 };
 
 /** the newest folder this player has opened, proven by consecutive round tokens */
 function openedUpTo(caseId: string, tokens: Record<string, unknown>) {
@@ -123,11 +123,11 @@ function openedUpTo(caseId: string, tokens: Record<string, unknown>) {
 }
 
 /** The next finding in a room that this player has not found yet and may see now; index -1 when there is none. */
-export function search(caseId: string, room: string, found: number[], tokens: Record<string, unknown>): { index: number; text: string } | null {
+export function search(caseId: string, room: string, found: number[], tokens: Record<string, unknown>): { index: number; text: string; exhibit?: number } | null {
   const list = SEARCHES[caseId]?.[room];
   if (!list) return null;
   const upTo = openedUpTo(caseId, tokens);
   const i = list.findIndex((f, k) => f.round <= upTo && !found.includes(k));
   if (i < 0) return { index: -1, text: "You go over the room again, slowly. Nothing new turns up, for now." };
-  return { index: i, text: list[i].text };
+  return { index: i, text: list[i].text, exhibit: list[i].exhibit };
 }

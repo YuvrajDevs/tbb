@@ -28,6 +28,6 @@ export const askSuspect = (caseId: string, who: string, topic: string, tokens: R
   post<{ text: string; known: boolean }>(caseId, { op: "ask", who, topic, tokens });
 export const fetchIntro = (caseId: string, who: string) => post<{ text: string }>(caseId, { op: "intro", who });
 export const searchRoom = (caseId: string, room: string, found: number[], tokens: Record<number, string>) =>
-  post<{ index: number; text: string }>(caseId, { op: "search", room, found, tokens });
+  post<{ index: number; text: string; exhibit?: number }>(caseId, { op: "search", room, found, tokens });
 export const fetchVerdict = (caseId: string, vote: Vote, tokens: Record<number, string>) =>
   post<CaseResult>(caseId, { op: "verdict", vote, tokens });

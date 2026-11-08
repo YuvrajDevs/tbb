@@ -23,7 +23,7 @@ const IDLE_MS = (() => {
   }
 })();
 
-type Panel = null | "interview" | "search" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Panel = null | "interview" | "search" | "guide" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -196,6 +196,26 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
     else if (reachedEnd.current || s.narration.script !== "briefing") setSlideshow(false);
   }, [slideshow, briefingAtEnd, s.narration.script, priv.viewed.length]);
   const briefImage = slideshow && s.narration.script === "briefing" ? line?.image : undefined;
+  // the how-to-play guide opens once, when the first folder opens
+  useEffect(() => {
+    if (!inBriefing && !priv.guided && s.unlocked === 1 && !s.finishedAt && priv.viewed.length === 0) {
+      setPriv((x) => ({ ...x, guided: true }));
+      setPanel("guide");
+    }
+  }, [inBriefing, priv.guided, priv.viewed.length, s.unlocked, s.finishedAt, setPriv]);
+  // a word from the Bureau when the investigation clock runs long
+  useEffect(() => {
+    const spent = s.spent ?? 0;
+    const said = priv.clockNotes ?? [];
+    const note = spent >= 900 && !said.includes("midnight") ? "midnight" : spent >= 480 && !said.includes("8h") ? "8h" : null;
+    if (!note || s.finishedAt) return;
+    setPriv((x) => ({ ...x, clockNotes: [...(x.clockNotes ?? []), note] }));
+    toast(
+      note === "8h"
+        ? "A full working day on the clock. From here on, every half hour lowers your Bureau rating."
+        : "Midnight on the investigation clock. The Director expects a report.",
+    );
+  }, [s.spent, s.finishedAt, priv.clockNotes, setPriv, toast]);
   useEffect(() => {
     if (!slideshow) return;
     for (const l of c.narration.briefing) if (l.image) new Image().src = l.image;
@@ -326,8 +346,9 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {unread > 0 && <span className="badge">{unread}</span>}
             </button>
           )}
-          {c.rooms && <button className="btn sm ghost hide-sm" onClick={() => go("search")}>Search</button>}
-          <button className="btn sm ghost hide-sm" onClick={() => go("interview")}>Interview</button>
+          <button className="btn sm ghost hide-sm" onClick={() => go("guide")}>How to play</button>
+          {c.rooms && <button className="btn sm ghost hide-sm" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : ""} onClick={() => go("search")}>Search</button>}
+          <button className="btn sm ghost hide-sm" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : ""} onClick={() => go("interview")}>Interview</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("hints")}>Hints</button>
           <button className="iconbtn" onClick={() => go("settings")} aria-label="Settings">{Glyph.gear}</button>
@@ -368,6 +389,12 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       <div className={`desk-body ${openFile ? "has-file" : ""}`}>
         {/* ---------- folders + files ---------- */}
         <section className="desk-left">
+          {/* phones have no viewer pane until a file is open, so the briefing photo sits above the folders there */}
+          {briefImage && !openFile && (
+            <div className="brief-mobile">
+              <BriefingStill src={briefImage} />
+            </div>
+          )}
           <div className="folders">
             {c.rounds.map((r) => {
               const st = folderState(r);
@@ -580,8 +607,8 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
             {Glyph.files}<span>Files</span>
           </button>
-          {c.rooms && <button className={panel === "search" ? "on" : ""} onClick={() => go("search")}>{Glyph.search}<span>Search</span></button>}
-          <button className={panel === "interview" ? "on" : ""} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
+          {c.rooms && <button className={panel === "search" ? "on" : ""} disabled={inBriefing} onClick={() => go("search")}>{Glyph.search}<span>Search</span></button>}
+          <button className={panel === "interview" ? "on" : ""} disabled={inBriefing} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
           {g.party && (
@@ -622,7 +649,19 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               />
             )}
             {panel === "interview" && <InterviewPanel g={g} />}
-            {panel === "search" && <SearchPanel g={g} />}
+            {panel === "search" && (
+              <SearchPanel
+                g={g}
+                onOpen={(ex) => {
+                  const f = c.rounds.flatMap((r) => r.files).find((x) => x.exhibit === ex);
+                  if (f) {
+                    setPanel(null);
+                    view(f);
+                  }
+                }}
+              />
+            )}
+            {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} />}
             {panel === "notebook" && <NotebookPanel g={g} />}
             {panel === "settings" && <SettingsPanel g={g} />}
             {panel === "table" && <TablePanel g={g} />}
@@ -1504,7 +1543,7 @@ function InvestigationClock({ spent }: { spent: number }) {
 }
 
 /* ---------- searching the house ---------- */
-function SearchPanel({ g }: { g: Game }) {
+function SearchPanel({ g, onOpen }: { g: Game; onOpen: (exhibit: number) => void }) {
   const { c, s, priv, setPriv } = g;
   const rooms = c.rooms ?? [];
   const [room, setRoom] = useState(rooms[0]?.id ?? "");
@@ -1524,6 +1563,7 @@ function SearchPanel({ g }: { g: Game }) {
           ...x,
           searched: { ...(x.searched ?? {}), [room]: [...(x.searched?.[room] ?? []), r.index] },
           findings: { ...(x.findings ?? {}), [`${room}:${r.index}`]: r.text },
+          findingExhibit: r.exhibit ? { ...(x.findingExhibit ?? {}), [`${room}:${r.index}`]: r.exhibit } : x.findingExhibit,
         }));
     } catch {
       setErr("The search could not be logged. Try again.");
@@ -1576,6 +1616,15 @@ function SearchPanel({ g }: { g: Game }) {
             <li key={k}>
               <div className="iv-q">{label(k.split(":")[0])}</div>
               <div className="iv-a">{text}</div>
+              {priv.findingExhibit?.[k] && (() => {
+                const ex = priv.findingExhibit![k];
+                const f = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files).find((x) => x.exhibit === ex);
+                return f ? (
+                  <button className="iv-link" onClick={() => onOpen(ex)}>Related: Exhibit {ex} — {f.name} · Open it</button>
+                ) : (
+                  <span className="iv-link muted-dark">Related to an exhibit in a sealed folder</span>
+                );
+              })()}
             </li>
           ))}
         </ul>
@@ -1653,6 +1702,33 @@ function TheoryBox({ g }: { g: Game }) {
           <button className="btn sm" onClick={() => setOpen(true)}>Make a suggestion</button>
         </>
       )}
+    </div>
+  );
+}
+
+/* ---------- how to play ---------- */
+function GuidePanel({ onClose }: { onClose: () => void }) {
+  const items: [string, string][] = [
+    ["Read the folder", "Each folder holds the exhibits for one round. Read them closely: times, names and small details matter."],
+    ["Search the house", `Look round Hollow Pines room by room. Rooms give up more as new folders open. Each search costs ${COST.search} minutes.`],
+    ["Interview", `Ask anyone about the others, or show them an exhibit and watch how they react. People lie. Each question costs ${COST.question} minutes.`],
+    ["Keep your grid", "In the Notebook, rule suspects, methods and motives out, or mark them possible or likely. The report grades your grid."],
+    ["Answer the checkpoint", `Each round ends with one question. A wrong answer costs ${COST.wrong} minutes; hints cost ${COST.hint}.`],
+    ["Watch the clock", "The investigation clock starts at 09:05 on Sunday. Past a full working day, your rating starts to drop."],
+    ["Accuse", "Name who, how and why, lock it, then prove it with five details. The Bureau rates your work out of 100."],
+  ];
+  return (
+    <div>
+      <div className="eyebrow">The Bureau&apos;s method</div>
+      <h2 className="sheet-h">How to work a case</h2>
+      <ol className="guide">
+        {items.map(([h, p]) => (
+          <li key={h}>
+            <b>{h}.</b> {p}
+          </li>
+        ))}
+      </ol>
+      <button className="btn primary" onClick={onClose}>Open the file</button>
     </div>
   );
 }
