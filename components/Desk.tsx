@@ -1052,6 +1052,7 @@ function TablePanel({ g }: { g: Game }) {
           : "Evidence is shared. Everyone sees every unlocked file."}
       </p>
 
+      <TheoryBox g={g} />
       <div className="eyebrow" style={{ marginBottom: 8 }}>Table talk</div>
       <div className="chat" ref={listRef}>
         {chat.length === 0 && <p className="muted-dark" style={{ margin: 0, fontSize: 14 }}>Not on a call? Talk it through here. Messages go to everyone at the table.</p>}
@@ -1601,6 +1602,79 @@ function SearchPanel({ g }: { g: Game }) {
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/* ---------- a theory put to the table: the others answer privately with one exhibit that disproves it ---------- */
+function TheoryBox({ g }: { g: Game }) {
+  const { c, s } = g;
+  const th = s.theory;
+  const [v, setV] = useState<Vote>({ suspect: "", method: "", motive: "" });
+  const [pick, setPick] = useState("");
+  const [open, setOpen] = useState(false);
+  const files = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
+  const name = (id: string) => (id === g.me ? "You" : s.players[id]?.name ?? "A player");
+  const lab = (list: { id: string; label: string }[], id: string) => list.find((x) => x.id === id)?.label ?? "";
+  const others = sortedPlayers(s).filter((id) => th && id !== th.by && g.online.includes(id));
+  const summary = th ? `${c.suspects.find((x) => x.id === th.vote.suspect)?.name} · ${lab(c.accusation.methods, th.vote.method)} · ${lab(c.accusation.motives, th.vote.motive)}` : "";
+  if (s.finishedAt) return null;
+  return (
+    <div className="theory">
+      <div className="eyebrow">A theory for the table</div>
+      {th ? (
+        <>
+          <p className="theory-v"><b>{name(th.by)}</b> {th.by === g.me ? "think" : "thinks"}: {summary}</p>
+          {th.by === g.me ? (
+            <>
+              <ul className="theory-replies">
+                {others.map((id) => (
+                  <li key={id}>
+                    {name(id)}:{" "}
+                    {!(id in th.replies) ? (
+                      <span className="muted-dark">thinking…</span>
+                    ) : th.replies[id] ? (
+                      <b>Exhibit {files.find((f) => f.id === th.replies[id])?.exhibit} — {files.find((f) => f.id === th.replies[id])?.name}</b>
+                    ) : (
+                      <span>can&apos;t disprove it</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="muted-dark" style={{ fontSize: 13 }}>Only you see which exhibits they chose.</p>
+              <button className="btn sm ghost" onClick={() => g.act({ t: "theory", vote: null })}>Withdraw the theory</button>
+            </>
+          ) : g.me in th.replies ? (
+            <p className="muted-dark">You answered. {Object.keys(th.replies).length} of {others.length} have answered.</p>
+          ) : (
+            <div className="iv-show">
+              <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="An exhibit that disproves the theory">
+                <option value="">An exhibit that disproves it…</option>
+                {files.map((f) => <option key={f.id} value={f.id}>Exhibit {f.exhibit} — {f.name}</option>)}
+              </select>
+              <button className="btn sm primary" disabled={!pick} onClick={() => g.act({ t: "rebut", fileId: pick })}>Answer</button>
+              <button className="btn sm" onClick={() => g.act({ t: "rebut", fileId: null })}>Can&apos;t disprove</button>
+            </div>
+          )}
+        </>
+      ) : open ? (
+        <>
+          <div className="theory-pick">
+            <select value={v.suspect} onChange={(e) => setV({ ...v, suspect: e.target.value })} aria-label="Who"><option value="">Who…</option>{c.suspects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+            <select value={v.method} onChange={(e) => setV({ ...v, method: e.target.value })} aria-label="How"><option value="">How…</option>{c.accusation.methods.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+            <select value={v.motive} onChange={(e) => setV({ ...v, motive: e.target.value })} aria-label="Why"><option value="">Why…</option>{c.accusation.motives.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button className="btn sm primary" disabled={!v.suspect || !v.method || !v.motive} onClick={() => { g.act({ t: "theory", vote: v }); setOpen(false); }}>Put it to the table</button>
+            <button className="btn sm ghost" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="muted-dark" style={{ fontSize: 14, margin: "4px 0 8px" }}>Suggest who, how and why. Everyone else answers privately with one exhibit that disproves it.</p>
+          <button className="btn sm" onClick={() => setOpen(true)}>Make a suggestion</button>
+        </>
       )}
     </div>
   );
