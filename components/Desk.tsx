@@ -1394,19 +1394,7 @@ function BriefingStill({ src }: { src: string }) {
 function InterviewPanel({ g }: { g: Game }) {
   const { c, s, priv, setPriv } = g;
   const [who, setWho] = useState(c.suspects[0].id);
-  const [intros, setIntros] = useState<Record<string, { text: string; src: string }>>({});
-  const [playing, setPlaying] = useState<string | null>(null);
-  // only the dialogue is recorded; stage directions stay as captions
-  const spokenPart = (t: string) => {
-    const q = t.match(/(?:^|(?<=[.!?] ))'(.+?)'(?= [A-Z]|$)/g);
-    return q ? q.map((x) => x.slice(1, -1)).join(" ") : t;
-  };
-  const play = (key: string, text: string, src?: string) => {
-    if (!priv.voice) return;
-    setPlaying(key);
-    speakLine(c.id, `iv-${key}`, spokenPart(text), () => setPlaying((p) => (p === key ? null : p)), src);
-  };
-  useEffect(() => () => stopNarration(), []);
+  const [intros, setIntros] = useState<Record<string, string>>({});
   const [exhibit, setExhibit] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -1414,10 +1402,7 @@ function InterviewPanel({ g }: { g: Game }) {
   const heard = priv.interviews ?? {};
   useEffect(() => {
     if (intros[who]) return;
-    fetchIntro(c.id, who).then((r) => {
-      setIntros((x) => ({ ...x, [who]: r }));
-      play(`${who}|intro`, r.text, r.src);
-    }).catch(() => {});
+    fetchIntro(c.id, who).then((r) => setIntros((x) => ({ ...x, [who]: r.text }))).catch(() => {});
   }, [who, intros, c.id]);
   const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name }))];
   const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
@@ -1434,8 +1419,7 @@ function InterviewPanel({ g }: { g: Game }) {
     try {
       const r = await askSuspect(c.id, who, topic, s.tokens ?? {});
       g.act({ t: "spend", min: COST.question });
-      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text }, interviewAudio: { ...(x.interviewAudio ?? {}), [key]: r.src } }));
-      play(key, r.text, r.src);
+      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
     } catch {
       setErr("The interview room could not be reached. Try again.");
     } finally {
@@ -1456,7 +1440,7 @@ function InterviewPanel({ g }: { g: Game }) {
           </button>
         ))}
       </div>
-      <p className="iv-intro">{intros[who]?.text ?? "…"}</p>
+      <p className="iv-intro">{intros[who] ?? "…"}</p>
       <div className="eyebrow" style={{ marginTop: 14 }}>Ask about</div>
       <div className="iv-chips">
         {people.map((p) => {
@@ -1494,14 +1478,7 @@ function InterviewPanel({ g }: { g: Game }) {
         <ul className="iv-log">
           {transcript.map(([k, text]) => (
             <li key={k}>
-              <div className="iv-q">
-                {topicLabel(k.split("|")[1])}
-                {priv.voice && priv.interviewAudio?.[k] && (
-                  <button className="iv-play" onClick={() => play(k, text, priv.interviewAudio?.[k])} aria-label="Play this answer again">
-                    {playing === k ? "▶ playing" : "▶ play"}
-                  </button>
-                )}
-              </div>
+              <div className="iv-q">{topicLabel(k.split("|")[1])}</div>
               <div className="iv-a">{text}</div>
             </li>
           ))}

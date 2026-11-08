@@ -75,8 +75,6 @@ export interface Private {
   grid?: Record<string, GridMark>;
   /** interview answers this device has heard, keyed "<person>|<topic>", in the order they were asked */
   interviews?: Record<string, string>;
-  /** the recording for each heard answer, same keys */
-  interviewAudio?: Record<string, string>;
   /** what this device has found searching the house: room -> finding indexes, and "room:index" -> text */
   searched?: Record<string, number[]>;
   findings?: Record<string, string>;
