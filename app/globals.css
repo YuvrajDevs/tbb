@@ -228,7 +228,7 @@ button { font-family: inherit; }
   padding: 16px 22px 20px; background: rgba(10,9,7,.96); border-top: 1px solid var(--line-2); backdrop-filter: blur(8px);
 }
 .nar-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); border: 1px solid var(--line); padding: 3px 7px; }
-.nar-text { font-family: var(--display); font-size: 16.5px; line-height: 1.45; color: var(--text); font-style: italic; }
+.nar-text { font-family: var(--display); font-size: 16.5px; line-height: 1.45; color: var(--text); font-style: italic; min-height: 2.9em; display: flex; align-items: center; } /* always two lines tall, so the dock never jumps */
 .nar-ctl { display: flex; gap: 6px; }
 .nar-ctl .iconbtn:disabled { opacity: .3; cursor: default; }
 .nar-prog { position: absolute; left: 0; right: 0; top: -1px; display: flex; gap: 2px; }
@@ -344,7 +344,7 @@ button { font-family: inherit; }
   .folders::-webkit-scrollbar { display: none; }
   .folder { flex: 0 0 116px; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px; }
   .folder-label .t { font-size: 13.5px; }
-  .nar-text { font-size: 14.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .nar-text { font-size: 14.5px; min-height: 4.35em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   .nar-text.open { -webkit-line-clamp: unset; display: block; }
   .desk { padding-bottom: 150px; }
 }
@@ -652,9 +652,10 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 
 /* ---------- briefing stills (shown in the empty viewer while the briefing is read) ---------- */
 .brief-still { position: relative; height: calc(100vh - 200px); min-height: 400px; overflow: hidden; border-radius: 4px; background: #0b0907; }
-.brief-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform, opacity; }
-.brief-img.prev { opacity: 1; }
-.brief-img.now { animation: brief-in 1.4s ease forwards, var(--brief-move) 16s ease-out forwards; opacity: 0; }
+.brief-layer { position: absolute; inset: 0; overflow: hidden; }
+.brief-layer.in { animation: brief-in 2s ease-in-out both; }
+.brief-layer.out { opacity: 1; } /* stays put under the new photo while it dissolves in */
+.brief-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; will-change: transform; animation: var(--brief-move) 18s ease-out both; }
 .brief-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%); }
 .m-push { --brief-move: brief-push; }
 .m-pull { --brief-move: brief-pull; }
@@ -662,7 +663,8 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .m-pan-r { --brief-move: brief-pan-r; }
 .m-rise { --brief-move: brief-rise; }
 .m-lens { --brief-move: brief-lens; }
-@keyframes brief-in { to { opacity: 1; } }
+@keyframes brief-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes brief-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes brief-push { from { transform: scale(1.04); } to { transform: scale(1.16); } }
 @keyframes brief-pull { from { transform: scale(1.18); } to { transform: scale(1.05); } }
 @keyframes brief-pan-l { from { transform: scale(1.14) translateX(3%); } to { transform: scale(1.14) translateX(-3%); } }
@@ -673,5 +675,5 @@ button.nar-text { background: none; border: 0; padding: 0; text-align: left; col
 .files-wait { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 22px 4px; }
 .files-wait p { color: var(--text-3); font-style: italic; margin: 0; max-width: 320px; }
 @media (prefers-reduced-motion: reduce) {
-  .brief-img.now { animation: brief-in 0.6s ease forwards; transform: scale(1.04); }
+  .brief-img { animation: none; transform: scale(1.04); }
 }

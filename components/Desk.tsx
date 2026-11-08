@@ -1224,18 +1224,20 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
 /* ---------- the briefing stills: one photograph per narration line, with a slow camera move ---------- */
 const MOVES = ["push", "pan-l", "pull", "pan-r", "lens", "rise"];
 function BriefingStill({ src }: { src: string }) {
-  // keep the previous still underneath so the new one dissolves over it
-  const [shown, setShown] = useState<{ src: string; prev: string | null }>({ src, prev: null });
+  // Each photo keeps its own layer, so its camera move carries on smoothly while the next one dissolves over it.
+  const [layers, setLayers] = useState<string[]>([src]);
   useEffect(() => {
-    setShown((x) => (x.src === src ? x : { src, prev: x.src }));
+    setLayers((x) => (x[x.length - 1] === src ? x : [...x.filter((y) => y !== src), src].slice(-2)));
   }, [src]);
-  const move = MOVES[Math.abs([...shown.src].reduce((h, ch) => h * 31 + ch.charCodeAt(0), 7)) % MOVES.length];
+  const moveOf = (u: string) => MOVES[Math.abs([...u].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7)) % MOVES.length];
   return (
     <div className="brief-still" aria-hidden="true">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {shown.prev && <img key={`p-${shown.prev}`} className="brief-img prev" src={shown.prev} alt="" />}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img key={shown.src} className={`brief-img now m-${move}`} src={shown.src} alt="" />
+      {layers.map((u, i) => (
+        <div key={u} className={`brief-layer ${i === layers.length - 1 ? "in" : "out"}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={`brief-img m-${moveOf(u)}`} src={u} alt="" />
+        </div>
+      ))}
       <div className="brief-vignette" />
     </div>
   );
