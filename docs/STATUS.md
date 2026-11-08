@@ -28,10 +28,14 @@ The owner likes the current UI — keep it.
     per player. Folder 1 stays sealed until the briefing ends ("Skip the briefing" available).
   - Checkpoints with "Look again" and skip after 3 tries; 3-level private hints; round timer, off by default (Settings).
   - **Investigation clock** (top bar): starts Sun 11 Oct 09:05; questions cost 15 min, searches 20, hints 30, wrong answers 20.
+  - **Investigate** panel (one button, one phone tab) with tabs: Interview, Search the house, and Theory in a race.
+    Every open exhibit has **Show to…** to put it in front of a suspect directly. Costs are on the buttons and the clock
+    flashes "+N min"; an empty search is free and marks the room until the next folder.
   - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
     served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
   - **Search the house:** seven rooms on a simple plan; findings released by the server as folders open (`lib/server/search-017.ts`).
-  - **Notebook:** deduction grid (who / how / why: ruled out, possible, likely), notes, starred exhibits.
+  - **Notebook:** deduction grid in Who / How / Why tabs with a running summary (ruled out, possible, likely), notes,
+    starred exhibits. The accusation is pre-filled from single "likely" marks.
   - **Accusation:** pick who, how and why, lock it, then answer five scored detail questions (answers server-side).
   - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
     Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).

@@ -84,6 +84,8 @@ export interface Private {
   findings?: Record<string, string>;
   /** the exhibit a finding points to, same keys as findings */
   findingExhibit?: Record<string, number>;
+  /** rooms searched bare, and the folder that was open at the time */
+  searchedOut?: Record<string, number>;
   /** the how-to-play guide has been shown once */
   guided?: boolean;
   /** race mode: theories put to the Bureau and its answers */

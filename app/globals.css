@@ -749,3 +749,31 @@ span.iv-link { cursor: default; }
 .theory-pick { display: grid; gap: 6px; margin-top: 8px; }
 .theory-pick select { background: transparent; color: var(--text); border: 1px solid var(--line-2); padding: 8px 10px; font: inherit; font-size: 14px; }
 .theory-pick option { background: #15110d; }
+
+/* ---------- investigate, redesigned ---------- */
+.inv-btn { display: inline-flex; align-items: center; gap: 6px; }
+.inv-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line-2); margin: 10px 0 16px; overflow-x: auto; }
+.inv-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--text-3); font-family: var(--mono); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; padding: 10px 14px; cursor: pointer; white-space: nowrap; margin-bottom: -1px; }
+.inv-tabs button.on { color: var(--text); border-bottom-color: var(--manila); }
+.iv-people { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.iv-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+.iv-cost { font-family: var(--mono); font-size: 11px; color: var(--manila); letter-spacing: .06em; }
+.iv-chips .btn.done { opacity: .75; }
+.iv-latest { border: 1px solid var(--manila); background: rgba(212, 178, 120, .07); padding: 12px 14px; margin: 16px 0 0; list-style: none; animation: brief-in .5s ease both; }
+.iv-latest.pending { font-family: var(--display); font-style: italic; color: var(--text-3); border-style: dashed; }
+.show-to { background: transparent; color: var(--text); border: 1px solid var(--line-2); padding: 6px 8px; font: inherit; font-size: 12.5px; max-width: 190px; }
+.show-to option { background: #15110d; }
+.inv-clock { position: relative; }
+.inv-clock.ticked { border-color: var(--manila); }
+.clock-delta { position: absolute; right: 8px; top: 100%; margin-top: 4px; font-family: var(--mono); font-size: 11px; color: var(--manila); animation: clock-up 2.4s ease forwards; white-space: nowrap; }
+@keyframes clock-up { 0% { opacity: 0; transform: translateY(-4px); } 15% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.plan-room.bare { opacity: .6; }
+.plan-room.bare .plan-n { color: var(--text-3); }
+.dgrid-tabs button { display: grid; gap: 3px; text-align: left; }
+.dgrid-sum { font-family: var(--display); font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-3); }
+.dgrid-tabs button.on .dgrid-sum { color: var(--manila); }
+.dgrid-row { padding: 8px 12px; }
+@media (max-width: 900px) {
+  .inv-clock { display: inline-block !important; font-size: 10px; padding: 5px 7px; }
+  .show-to { max-width: 130px; }
+}

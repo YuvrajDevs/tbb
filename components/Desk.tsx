@@ -38,6 +38,9 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [zoom, setZoom] = useState(1);
   const [narOpen, setNarOpen] = useState(false);
+  // the Investigate panel remembers its last tab; "Show to…" on an exhibit queues a question for it
+  const [invTab, setInvTab] = useState<"interview" | "search" | "theory">("interview");
+  const [pendingAsk, setPendingAsk] = useState<{ who: string; topic: string } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -375,12 +378,9 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {raceUnread > 0 && <span className="badge">{raceUnread}</span>}
             </button>
           )}
-          {g.race && !s.finishedAt && (
-            <button className="btn sm ghost hide-sm" disabled={inBriefing} onClick={() => go("theory")}>Theory</button>
-          )}
-          <button className="btn sm ghost hide-sm" onClick={() => go("guide")}>How to play</button>
-          {c.rooms && <button className="btn sm ghost hide-sm" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : ""} onClick={() => go("search")}>Search</button>}
-          <button className="btn sm ghost hide-sm" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : ""} onClick={() => go("interview")}>Interview</button>
+          <button className="btn sm hide-sm inv-btn" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : "Search the house, interview people" + (g.race ? ", put theories to the Bureau" : "")} onClick={() => go(invTab)}>
+            {Glyph.search} Investigate
+          </button>
           <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
           <button className="btn sm ghost hide-sm" onClick={() => go("hints")}>Hints</button>
           <button className="iconbtn" onClick={() => go("settings")} aria-label="Settings">{Glyph.gear}</button>
@@ -542,6 +542,26 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   <span>Exhibit {openFile.exhibit} — {openFile.name}</span>
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
+                  {!s.finishedAt && (
+                    <select
+                      className="show-to"
+                      value=""
+                      aria-label="Show this exhibit to someone"
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        setPendingAsk({ who: e.target.value, topic: `e:${openFile.exhibit}` });
+                        setInvTab("interview");
+                        setPanel("interview");
+                      }}
+                    >
+                      <option value="">Show to… · {COST.question} min</option>
+                      {c.suspects.map((x) => (
+                        <option key={x.id} value={x.id} disabled={!!priv.interviews?.[`${x.id}|e:${openFile.exhibit}`]}>
+                          {priv.interviews?.[`${x.id}|e:${openFile.exhibit}`] ? "✓ " : ""}{x.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {g.party && s.mode === "split" && holder(openFile) === g.me && (
                     <button className="btn sm" onClick={() => g.act({ t: "show", fileId: openFile.id })} title="Let every player open this file">Show all</button>
                   )}
@@ -639,8 +659,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
             {Glyph.files}<span>Files</span>
           </button>
-          {c.rooms && <button className={panel === "search" ? "on" : ""} disabled={inBriefing} onClick={() => go("search")}>{Glyph.search}<span>Search</span></button>}
-          <button className={panel === "interview" ? "on" : ""} disabled={inBriefing} onClick={() => go("interview")}>{Glyph.talk}<span>Interview</span></button>
+          <button className={panel === "interview" || panel === "search" || panel === "theory" ? "on" : ""} disabled={inBriefing} onClick={() => go(invTab)}>{Glyph.search}<span>Investigate</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
           {g.race && (
@@ -686,10 +705,17 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 }}
               />
             )}
-            {panel === "interview" && <InterviewPanel g={g} />}
-            {panel === "search" && (
-              <SearchPanel
+            {(panel === "interview" || panel === "search" || panel === "theory") && (
+              <InvestigatePanel
                 g={g}
+                tab={panel}
+                setTab={(t) => {
+                  setInvTab(t);
+                  setPanel(t);
+                }}
+                pending={pendingAsk}
+                clearPending={() => setPendingAsk(null)}
+                locked={inBriefing}
                 onOpen={(ex) => {
                   const f = c.rounds.flatMap((r) => r.files).find((x) => x.exhibit === ex);
                   if (f) {
@@ -701,9 +727,8 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
             )}
             {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} race={!!g.race} />}
             {panel === "standings" && g.race && <StandingsPanel g={g} room={g.race} />}
-            {panel === "theory" && g.race && <TheoryPanel g={g} locked={inBriefing} />}
             {panel === "notebook" && <NotebookPanel g={g} />}
-            {panel === "settings" && <SettingsPanel g={g} />}
+            {panel === "settings" && <SettingsPanel g={g} onGuide={() => setPanel("guide")} />}
             {panel === "table" && <TablePanel g={g} />}
             {panel === "accuse" && <AccusePanel g={g} />}
             {panel === "reveal" && <RevealPanel g={g} onClose={() => setPanel(null)} />}
@@ -1022,20 +1047,34 @@ function DeductionGrid({ g }: { g: Game }) {
       const suspects = key.startsWith("s:") && !next ? { ...p.suspects, [key.slice(2)]: "none" as const } : p.suspects;
       return { ...p, grid, suspects };
     });
+  const [open, setOpen] = useState("s");
+  const summary = (sec: (typeof sections)[number]) => {
+    const marks = sec.items.map((it) => gridMark(priv, `${sec.prefix}:${it.id}`));
+    const out = marks.filter((m) => m === "out").length;
+    const likely = sec.items.filter((it) => gridMark(priv, `${sec.prefix}:${it.id}`) === "likely").map((it) => (sec.prefix === "s" ? it.label.split(" ")[0] : "1 marked"));
+    return [out ? `${out} ruled out` : "", likely.length ? `likely: ${sec.prefix === "s" ? likely.join(", ") : likely.length}` : ""].filter(Boolean).join(" · ") || "nothing marked";
+  };
   return (
     <div className="dgrid">
-      {sections.map((sec) => (
+      <div className="inv-tabs dgrid-tabs" role="tablist">
+        {sections.map((sec) => (
+          <button key={sec.prefix} role="tab" aria-selected={open === sec.prefix} className={open === sec.prefix ? "on" : ""} onClick={() => setOpen(sec.prefix)}>
+            <span>{sec.title}</span>
+            <span className="dgrid-sum">{summary(sec)}</span>
+          </button>
+        ))}
+      </div>
+      {sections.filter((sec) => sec.prefix === open).map((sec) => (
         <div key={sec.prefix} className="dgrid-sec">
-          <div className="eyebrow">{sec.title}</div>
           {sec.items.map((it) => {
             const key = `${sec.prefix}:${it.id}`;
             const m = gridMark(priv, key);
             return (
               <button key={key} className={`dgrid-row ${m}`} onClick={() => tap(key)} aria-label={`${it.label}: ${m === "none" ? "unmarked" : m === "out" ? "ruled out" : m === "maybe" ? "possible" : "likely"}`}>
                 <span className="dgrid-box">{GRID_LABEL[m]}</span>
-                <span className="dgrid-txt">
+                <span className="dgrid-txt" title={it.sub}>
                   <span>{it.label}</span>
-                  {it.sub && <span className="muted-dark dgrid-sub">{it.sub}</span>}
+                  {it.sub && <span className="muted-dark dgrid-sub">{it.sub.split(" · ")[0]}</span>}
                 </span>
               </button>
             );
@@ -1068,11 +1107,12 @@ function NotebookPanel({ g }: { g: Game }) {
   );
 }
 
-function SettingsPanel({ g }: { g: Game }) {
+function SettingsPanel({ g, onGuide }: { g: Game; onGuide: () => void }) {
   const { s, priv, setPriv } = g;
   return (
     <div>
       <div className="eyebrow">Settings</div>
+      <button className="btn sm" style={{ margin: "4px 0 14px" }} onClick={onGuide}>How to play</button>
       <h2 className="sheet-h">Table settings</h2>
       <label className={`toggle ${g.isHost ? "" : "disabled"}`}>
         <input type="checkbox" checked={s.timerEnabled} disabled={!g.isHost} onChange={() => g.act({ t: "setTimer", on: !s.timerEnabled })} />
@@ -1181,7 +1221,19 @@ function ChoiceGroup({ title, items, val, set, tally }: { title: string; items: 
 function AccusePanel({ g }: { g: Game }) {
   const { c, s } = g;
   const mine = s.votes[g.me];
-  const [v, setV] = useState<Vote>(mine ?? { suspect: "", method: "", motive: "" });
+  // start from the notebook: where the grid has exactly one "likely" in a section, it is pre-selected
+  const fromGrid = (prefix: string, ids: string[]) => {
+    const likely = ids.filter((id) => gridMark(g.priv, `${prefix}:${id}`) === "likely");
+    return likely.length === 1 ? likely[0] : "";
+  };
+  const [v, setV] = useState<Vote>(
+    mine ?? {
+      suspect: fromGrid("s", c.suspects.map((x) => x.id)),
+      method: fromGrid("m", c.accusation.methods.map((x) => x.id)),
+      motive: fromGrid("w", c.accusation.motives.map((x) => x.id)),
+    },
+  );
+  const prefilled = !mine && !!(v.suspect || v.method || v.motive);
   const [confirming, setConfirming] = useState(false);
   const complete = !!(v.suspect && v.method && v.motive);
   // Once who, how and why are locked, the precise questions open. There is no going back from them,
@@ -1259,6 +1311,7 @@ function AccusePanel({ g }: { g: Game }) {
         {c.narration.accusation[0].text} There is no second chance.
         {g.party && " Everyone votes. The host submits the room's answer."}
       </p>
+      {prefilled && <p className="note" style={{ marginTop: 0 }}>Filled in from the “likely” marks in your notebook. Change anything you like.</p>}
       <ChoiceGroup title="Who" items={c.suspects.map((x) => ({ id: x.id, label: `${x.name} — ${x.role}` }))} val={v.suspect} set={(x) => { setV({ ...v, suspect: x }); setConfirming(false); }} tally={g.party ? tally("suspect") : undefined} />
       <ChoiceGroup title="How" items={c.accusation.methods} val={v.method} set={(x) => { setV({ ...v, method: x }); setConfirming(false); }} tally={g.party ? tally("method") : undefined} />
       <ChoiceGroup title="Why" items={c.accusation.motives} val={v.motive} set={(x) => { setV({ ...v, motive: x }); setConfirming(false); }} tally={g.party ? tally("motive") : undefined} />
@@ -1477,90 +1530,156 @@ function BriefingStill({ src }: { src: string }) {
   );
 }
 
-/* ---------- interviews: ask a person about someone, or show them an exhibit ---------- */
-function InterviewPanel({ g }: { g: Game }) {
+/* ---------- investigate: interviews, searching the house and (in a race) theories, in one panel ---------- */
+type InvTab = "interview" | "search" | "theory";
+function InvestigatePanel(props: {
+  g: Game;
+  tab: InvTab;
+  setTab: (t: InvTab) => void;
+  pending: { who: string; topic: string } | null;
+  clearPending: () => void;
+  locked: boolean;
+  onOpen: (exhibit: number) => void;
+}) {
+  const { g, tab, setTab } = props;
+  const tabs: [InvTab, string][] = [["interview", "Interview"], ...(g.c.rooms ? ([["search", "Search the house"]] as [InvTab, string][]) : []), ...(g.race ? ([["theory", "Theory"]] as [InvTab, string][]) : [])];
+  return (
+    <div>
+      <div className="eyebrow">Investigate · the clock reads {clockLabel(g.s.spent ?? 0)}</div>
+      <div className="inv-tabs" role="tablist">
+        {tabs.map(([id, label]) => (
+          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "interview" && <InterviewPanel g={g} pending={props.pending} clearPending={props.clearPending} />}
+      {tab === "search" && <SearchPanel g={g} onOpen={props.onOpen} />}
+      {tab === "theory" && g.race && <TheoryPanel g={g} locked={props.locked} />}
+    </div>
+  );
+}
+
+function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who: string; topic: string } | null; clearPending: () => void }) {
   const { c, s, priv, setPriv } = g;
-  const [who, setWho] = useState(c.suspects[0].id);
+  const [who, setWho] = useState(pending?.who ?? c.suspects[0].id);
   const [intros, setIntros] = useState<Record<string, string>>({});
   const [exhibit, setExhibit] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [latest, setLatest] = useState<string | null>(null);
   const person = c.suspects.find((x) => x.id === who)!;
   const heard = priv.interviews ?? {};
   useEffect(() => {
     if (intros[who]) return;
     fetchIntro(c.id, who).then((r) => setIntros((x) => ({ ...x, [who]: r.text }))).catch(() => {});
   }, [who, intros, c.id]);
-  const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name }))];
+  const short = (x: { name: string }) => (x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name.split(" ")[0]);
+  const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: short(x) }))];
   const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
   const topicLabel = (t: string) => {
-    if (t.startsWith("p:")) return `About ${t === "p:vikram" ? "Vikram" : c.suspects.find((x) => x.id === t.slice(2))?.name ?? "them"}`;
+    if (t.startsWith("p:")) return `Asked about ${t === "p:vikram" ? "Vikram" : c.suspects.find((x) => x.id === t.slice(2))?.name ?? "them"}`;
     const f = openFiles.find((x) => String(x.exhibit) === t.slice(2));
     return f ? `Shown Exhibit ${f.exhibit} — ${f.name}` : "Shown an exhibit";
   };
-  const ask = async (topic: string) => {
-    const key = `${who}|${topic}`;
-    if (heard[key]) return;
-    setBusy(true);
-    setErr("");
-    try {
-      const r = await askSuspect(c.id, who, topic, s.tokens ?? {});
-      g.act({ t: "spend", min: COST.question });
-      setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
-    } catch {
-      setErr("The interview room could not be reached. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const transcript = Object.entries(heard).filter(([k]) => k.startsWith(`${who}|`)).reverse();
-  const asked = Object.keys(heard).length;
+  // a question is asked (and paid for) once, even if it is triggered twice before the answer is saved
+  const inFlight = useRef(new Set<string>());
+  const ask = useCallback(
+    async (person: string, topic: string) => {
+      const key = `${person}|${topic}`;
+      if (priv.interviews?.[key]) {
+        setLatest(key);
+        return;
+      }
+      if (inFlight.current.has(key)) return;
+      inFlight.current.add(key);
+      setBusy(true);
+      setErr("");
+      try {
+        const r = await askSuspect(c.id, person, topic, s.tokens ?? {});
+        g.act({ t: "spend", min: COST.question });
+        setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
+        setLatest(key);
+      } catch {
+        setErr("The interview room could not be reached. Try again.");
+      } finally {
+        inFlight.current.delete(key);
+        setBusy(false);
+      }
+    },
+    [c.id, g, priv.interviews, s.tokens, setPriv],
+  );
+  // a question queued from "Show to…" on an open exhibit
+  useEffect(() => {
+    if (!pending) return;
+    setWho(pending.who);
+    clearPending();
+    void ask(pending.who, pending.topic);
+  }, [pending, clearPending, ask]);
+  const transcript = Object.entries(heard).filter(([k]) => k.startsWith(`${who}|`) && k !== latest).reverse();
+  const latestText = latest && latest.startsWith(`${who}|`) ? heard[latest] : null;
   return (
     <div>
-      <div className="eyebrow">Interviews · {asked} {asked === 1 ? "question" : "questions"} asked · each costs {COST.question} minutes</div>
-      <h2 className="sheet-h">Who do you want to see?</h2>
       <div className="iv-people">
-        {c.suspects.map((x) => (
-          <button key={x.id} className={`iv-person ${who === x.id ? "on" : ""}`} onClick={() => setWho(x.id)}>
-            <span className="serif">{x.name}</span>
-            <span className="muted-dark">{x.role}</span>
-          </button>
-        ))}
-      </div>
-      <p className="iv-intro">{intros[who] ?? "…"}</p>
-      <div className="eyebrow" style={{ marginTop: 14 }}>Ask about</div>
-      <div className="iv-chips">
-        {people.map((p) => {
-          const done = !!heard[`${who}|p:${p.id}`];
+        {c.suspects.map((x) => {
+          const n = Object.keys(heard).filter((k) => k.startsWith(`${x.id}|`)).length;
           return (
-            <button key={p.id} className={`btn sm ${done ? "ghost" : ""}`} disabled={busy || done} onClick={() => ask(`p:${p.id}`)}>
-              {p.label}
+            <button key={x.id} className={`iv-person ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); }}>
+              <span className="serif">{x.name}</span>
+              <span className="muted-dark">{x.role}{n ? ` · ${n} asked` : ""}</span>
             </button>
           );
         })}
       </div>
-      <div className="eyebrow" style={{ marginTop: 14 }}>Show them an exhibit</div>
+      <p className="iv-intro">{intros[who] ?? "…"}</p>
+      <div className="iv-row">
+        <span className="eyebrow">Ask about</span>
+        <span className="iv-cost">{COST.question} min each</span>
+      </div>
+      <div className="iv-chips">
+        {people.map((p) => {
+          const done = !!heard[`${who}|p:${p.id}`];
+          return (
+            <button key={p.id} className={`btn sm ${done ? "ghost done" : ""}`} disabled={busy} onClick={() => ask(who, `p:${p.id}`)}>
+              {done ? "✓ " : ""}{p.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="iv-row" style={{ marginTop: 14 }}>
+        <span className="eyebrow">Show {short(person)} an exhibit</span>
+      </div>
       <div className="iv-show">
         <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Choose an exhibit to show">
           <option value="">Choose an exhibit…</option>
           {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
-            <optgroup key={r.number} label={`Round ${r.number} — ${r.title}`}>
-              {r.files.map((f) => (
-                <option key={f.id} value={String(f.exhibit)} disabled={!!heard[`${who}|e:${f.exhibit}`]}>
-                  Exhibit {f.exhibit} — {f.name}
-                </option>
-              ))}
+            <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
+              {r.files.map((f) => {
+                const done = !!heard[`${who}|e:${f.exhibit}`];
+                return (
+                  <option key={f.id} value={String(f.exhibit)}>
+                    {done ? "✓ " : ""}Exhibit {f.exhibit} — {f.name}
+                  </option>
+                );
+              })}
             </optgroup>
           ))}
         </select>
-        <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(`e:${exhibit}`).then(() => setExhibit(""))}>
-          {busy ? "Asking…" : "Show"}
+        <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>
+          {busy ? "Asking…" : heard[`${who}|e:${exhibit}`] ? "Read again" : "Show"}
         </button>
       </div>
       {err && <p className="lookagain">{err}</p>}
-      <h2 className="sheet-h" style={{ marginTop: 22 }}>{person.name} · transcript</h2>
-      {transcript.length === 0 ? (
-        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing asked yet. Every question goes on the record.</p>
+      {busy && <p className="iv-latest pending">{short(person)} considers the question…</p>}
+      {!busy && latestText && (
+        <div className="iv-latest" ref={(el) => el?.scrollIntoView({ block: "nearest", behavior: "smooth" })}>
+          <div className="iv-q">{topicLabel(latest!.split("|")[1])}</div>
+          <div className="iv-a">{latestText}</div>
+        </div>
+      )}
+      <h2 className="sheet-h" style={{ marginTop: 22 }}>{person.name} · on the record</h2>
+      {transcript.length === 0 && !latestText ? (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing asked yet. Tip: open any exhibit and use “Show to…” to put it in front of someone.</p>
       ) : (
         <ul className="iv-log">
           {transcript.map(([k, text]) => (
@@ -1583,9 +1702,21 @@ export const clockLabel = (spent: number) => {
   return `${day} · ${time}`;
 };
 function InvestigationClock({ spent }: { spent: number }) {
+  const prev = useRef(spent);
+  const [delta, setDelta] = useState<{ n: number; k: number } | null>(null);
+  useEffect(() => {
+    const d = spent - prev.current;
+    prev.current = spent;
+    if (d > 0) {
+      setDelta({ n: d, k: Date.now() });
+      const t = window.setTimeout(() => setDelta(null), 2400);
+      return () => window.clearTimeout(t);
+    }
+  }, [spent]);
   return (
-    <span className="inv-clock hide-sm" title={`Investigation clock. Questions cost ${COST.question} min, searches ${COST.search}, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
+    <span className={`inv-clock hide-sm ${delta ? "ticked" : ""}`} title={`Investigation clock. Questions cost ${COST.question} min, searches ${COST.search}, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
       {clockLabel(spent).toUpperCase()}
+      {delta && <span key={delta.k} className="clock-delta">+{delta.n} min</span>}
     </span>
   );
 }
@@ -1597,85 +1728,88 @@ function SearchPanel({ g, onOpen }: { g: Game; onOpen: (exhibit: number) => void
   const [room, setRoom] = useState(rooms[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [last, setLast] = useState<{ room: string; text: string; nothing: boolean } | null>(null);
+  const [last, setLast] = useState<string | null>(null);
   const found = priv.searched ?? {};
+  // a room searched bare stays marked until the next folder opens, so nobody pays twice for nothing
+  const bare = (id: string) => (priv.searchedOut?.[id] ?? 0) >= s.unlocked;
+  const label = (id: string) => rooms.find((r) => r.id === id)?.label ?? id;
   const go = async () => {
     setBusy(true);
     setErr("");
     try {
       const r = await searchRoom(c.id, room, found[room] ?? [], s.tokens ?? {});
-      g.act({ t: "spend", min: COST.search });
-      setLast({ room, text: r.text, nothing: r.index < 0 });
-      if (r.index >= 0)
+      if (r.index < 0) {
+        // nothing new: no time charged, and the room is marked for this folder
+        setPriv((x) => ({ ...x, searchedOut: { ...(x.searchedOut ?? {}), [room]: s.unlocked } }));
+        setLast(null);
+      } else {
+        g.act({ t: "spend", min: COST.search });
+        const key = `${room}:${r.index}`;
         setPriv((x) => ({
           ...x,
           searched: { ...(x.searched ?? {}), [room]: [...(x.searched?.[room] ?? []), r.index] },
-          findings: { ...(x.findings ?? {}), [`${room}:${r.index}`]: r.text },
-          findingExhibit: r.exhibit ? { ...(x.findingExhibit ?? {}), [`${room}:${r.index}`]: r.exhibit } : x.findingExhibit,
+          findings: { ...(x.findings ?? {}), [key]: r.text },
+          findingExhibit: r.exhibit ? { ...(x.findingExhibit ?? {}), [key]: r.exhibit } : x.findingExhibit,
         }));
+        setLast(key);
+      }
     } catch {
       setErr("The search could not be logged. Try again.");
     } finally {
       setBusy(false);
     }
   };
-  const label = (id: string) => rooms.find((r) => r.id === id)?.label ?? id;
-  const log = Object.entries(priv.findings ?? {}).reverse();
-  const floors: { id: "ground" | "upper" | "grounds"; title: string }[] = [
-    { id: "ground", title: "Ground floor" },
-    { id: "upper", title: "Upstairs" },
-    { id: "grounds", title: "The grounds" },
-  ];
+  const related = (k: string) => {
+    const ex = priv.findingExhibit?.[k];
+    if (!ex) return null;
+    const f = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files).find((x) => x.exhibit === ex);
+    return f ? (
+      <button className="iv-link" onClick={() => onOpen(ex)}>Related: Exhibit {ex} — {f.name} · Open it</button>
+    ) : (
+      <span className="iv-link muted-dark">Related to an exhibit in a folder still sealed</span>
+    );
+  };
+  const finding = (k: string, text: string, cls = "") => (
+    <li key={k} className={cls}>
+      <div className="iv-q">{label(k.split(":")[0])}</div>
+      <div className="iv-a">{text}</div>
+      {related(k)}
+    </li>
+  );
+  const log = Object.entries(priv.findings ?? {}).filter(([k]) => k !== last).reverse();
   return (
     <div>
-      <div className="eyebrow">Search Hollow Pines · each search costs {COST.search} minutes</div>
-      <h2 className="sheet-h">Where do you want to look?</h2>
       <div className="plan">
         {rooms.map((r) => (
           <button
             key={r.id}
-            className={`plan-room ${room === r.id ? "on" : ""} f-${r.floor}`}
+            className={`plan-room ${room === r.id ? "on" : ""} ${bare(r.id) ? "bare" : ""} f-${r.floor}`}
             style={{ gridColumn: `${r.area[0]} / span ${r.area[2]}`, gridRow: `${r.area[1]} / span ${r.area[3]}` }}
             onClick={() => setRoom(r.id)}
           >
             <span>{r.label}</span>
-            <span className="plan-n">{(found[r.id] ?? []).length ? `${found[r.id].length} found` : ""}</span>
+            <span className="plan-n">{bare(r.id) ? "searched · more later" : (found[r.id] ?? []).length ? `${found[r.id].length} found` : ""}</span>
           </button>
         ))}
       </div>
-      <div className="plan-key">{floors.map((f) => <span key={f.id} className={`f-${f.id}`}>{f.title}</span>)}</div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14 }}>
-        <button className="btn primary" disabled={!room || busy} onClick={go}>{busy ? "Searching…" : `Search ${label(room).toLowerCase()}`}</button>
+      <div className="plan-key">
+        <span className="f-ground">Ground floor</span>
+        <span className="f-upper">Upstairs</span>
+        <span className="f-grounds">The grounds</span>
+      </div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
+        <button className="btn primary" disabled={!room || busy || bare(room)} onClick={go}>
+          {busy ? "Searching…" : `Search ${label(room).toLowerCase()} · ${COST.search} min`}
+        </button>
+        {bare(room) && <span className="muted-dark" style={{ fontSize: 14 }}>Nothing more here for now. Rooms can hold more once the next folder opens.</span>}
         {err && <span className="lookagain" style={{ margin: 0 }}>{err}</span>}
       </div>
-      {last && (
-        <p className={`find-now ${last.nothing ? "none" : ""}`}>
-          <span className="iv-q">{label(last.room)}</span>
-          <br />
-          {last.text}
-        </p>
-      )}
+      {last && priv.findings?.[last] && <ul className="iv-log" style={{ marginTop: 16 }}>{finding(last, priv.findings[last], "iv-latest")}</ul>}
       <h2 className="sheet-h" style={{ marginTop: 22 }}>Found so far</h2>
-      {log.length === 0 ? (
-        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing yet. Rooms can hold more once new folders are open.</p>
+      {log.length === 0 && !last ? (
+        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing yet. Searching a room costs time only when it turns something up.</p>
       ) : (
-        <ul className="iv-log">
-          {log.map(([k, text]) => (
-            <li key={k}>
-              <div className="iv-q">{label(k.split(":")[0])}</div>
-              <div className="iv-a">{text}</div>
-              {priv.findingExhibit?.[k] && (() => {
-                const ex = priv.findingExhibit![k];
-                const f = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files).find((x) => x.exhibit === ex);
-                return f ? (
-                  <button className="iv-link" onClick={() => onOpen(ex)}>Related: Exhibit {ex} — {f.name} · Open it</button>
-                ) : (
-                  <span className="iv-link muted-dark">Related to an exhibit in a sealed folder</span>
-                );
-              })()}
-            </li>
-          ))}
-        </ul>
+        <ul className="iv-log">{log.map(([k, text]) => finding(k, text))}</ul>
       )}
     </div>
   );
