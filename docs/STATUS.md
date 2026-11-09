@@ -54,7 +54,7 @@ The owner likes the current UI — keep it.
     chat in the Race panel. First correct accusation wins; a wrong accusation is out. Up to 3 **theories to the Bureau**
     per racer (30 min each): the server rules out one wrong part with an exhibit from a folder the racer has opened
     (`disproof` in `lib/server/case-017.ts`), and gives the same reply when nothing is ruled out, so it never confirms.
-- **Phones:** bottom tab bar (Files, Search, Interview, Notebook, Hints, Table, Accuse), bottom sheets.
+- **Phones:** bottom tab bar (Files, Investigate, Notebook, Hints, Table or Race, Accuse), bottom sheets.
 - **Tests** (`tests/e2e/`, Playwright): the original suites predate the new mechanics; new features were checked by hand in
   headless browsers.
 
@@ -70,6 +70,6 @@ else the relay (`NEXT_PUBLIC_ROOM_RELAY`, `scripts/relay.mjs`), else same-browse
 ## Left to do
 
 - Payments, per-buyer watermarked kit ZIP, Hindi / Hinglish, Android wrapper / PWA (from the PRD, not started).
-- Extend `tests/e2e/` to cover interviews, search, the clock, theories, the grid and the two-step accusation.
+- Extend `tests/e2e/` to cover interviews, the clock, theories, the grid and the two-step accusation.
 - Playtesting with real groups.
 - Marketing material lives in `reel/` (reels, carousel, brand exports); it is gitignored on purpose.
