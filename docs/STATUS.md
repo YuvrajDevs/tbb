@@ -38,7 +38,8 @@ The owner likes the current UI — keep it.
     summary. **Lines of enquiry open with the evidence:** a method or motive appears only once its folder is open
     (`from` on the choice: the land sale from folder 2, the injection from 3, the Trust fraud from 4), with a notice that
     does not name it. The accusation is pre-filled from single "likely" marks.
-  - **Interview** reads as a conversation: people as avatars, your questions and their answers as bubbles.
+  - **Interview** works like a messenger: on wide screens the people list (with the last answer as a preview) sits left
+    and the chat right; on phones the list comes first and a tap opens the chat, with a back arrow.
   - **Accusation:** pick who, how and why, lock it, then answer five scored detail questions (answers server-side).
   - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
     Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).

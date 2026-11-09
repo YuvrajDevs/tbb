@@ -690,7 +690,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       {/* ---------- panels ---------- */}
       {panel && (
         <div className="overlay" onClick={() => setPanel(null)}>
-          <div className={`sheet ${panel === "reveal" ? "wide" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className={`sheet ${panel === "reveal" ? "wide" : panel === "interview" || panel === "search" || panel === "theory" ? "xwide" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="sheet-grip" aria-hidden />
             <button className="iconbtn sheet-x" onClick={() => setPanel(null)} aria-label="Close">{Glyph.close}</button>
             {panel === "checkpoint" && <CheckpointPanel g={g} round={current} onClose={() => setPanel(null)} />}
@@ -1586,6 +1586,8 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [latest, setLatest] = useState<string | null>(null);
+  // phones show the people list first and open a chat on tap; wide screens show both side by side
+  const [chatOpen, setChatOpen] = useState(!!pending);
   const person = c.suspects.find((x) => x.id === who)!;
   const heard = priv.interviews ?? {};
   useEffect(() => {
@@ -1626,6 +1628,7 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
   useEffect(() => {
     if (!pending) return;
     setWho(pending.who);
+    setChatOpen(true);
     clearPending();
     void ask(pending.who, pending.topic);
   }, [pending, clearPending, ask]);
@@ -1639,69 +1642,88 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
   }, [convo.length, busy, who]);
+  const lastWords = (id: string) => {
+    const mine = Object.entries(heard).filter(([k]) => k.startsWith(`${id}|`));
+    return mine.length ? mine[mine.length - 1][1] : null;
+  };
   return (
-    <div>
-      <div className="people-row">
+    <div className={`msgr ${chatOpen ? "chat-open" : ""}`}>
+      {/* the people, like a messenger's chat list */}
+      <aside className="msgr-list" aria-label="People to interview">
         {c.suspects.map((x) => {
           const n = Object.keys(heard).filter((k) => k.startsWith(`${x.id}|`)).length;
+          const last = lastWords(x.id);
           return (
-            <button key={x.id} className={`person ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); }}>
+            <button key={x.id} className={`msgr-item ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); setChatOpen(true); }}>
               <Avatar name={x.name} />
-              <span className="person-n">{short(x)}</span>
-              <span className="person-r">{x.role}</span>
-              {n > 0 && <span className="person-c">{n}</span>}
+              <span className="msgr-meta">
+                <span className="msgr-top">
+                  <span className="msgr-name">{x.name}</span>
+                  {n > 0 && <span className="msgr-count">{n}</span>}
+                </span>
+                <span className="msgr-prev">{last ? last.replace(/'/g, "") : x.role}</span>
+              </span>
             </button>
           );
         })}
-      </div>
-      <div className="convo" ref={logRef}>
-        <p className="convo-scene">{intros[who] ?? "…"}</p>
-        {convo.map(([k, text]) => (
-          <div key={k} className={k === latest ? "convo-pair fresh" : "convo-pair"}>
-            <div className="bubble you">{question(k.split("|")[1])}</div>
-            <div className="bubble them">
-              <Avatar name={person.name} small />
-              <span>{text}</span>
+      </aside>
+
+      {/* the conversation */}
+      <section className="msgr-chat" aria-label={`Interview with ${person.name}`}>
+        <header className="msgr-head">
+          <button className="iconbtn msgr-back" onClick={() => setChatOpen(false)} aria-label="Back to people">{Glyph.back}</button>
+          <Avatar name={person.name} />
+          <span className="msgr-meta">
+            <span className="msgr-name">{person.name}</span>
+            <span className="msgr-prev">{person.role}, {person.age}</span>
+          </span>
+        </header>
+        <div className="convo" ref={logRef}>
+          <p className="convo-scene">{intros[who] ?? "…"}</p>
+          {convo.map(([k, text]) => (
+            <div key={k} className={k === latest ? "convo-pair fresh" : "convo-pair"}>
+              <div className="bubble you">{question(k.split("|")[1])}</div>
+              <div className="bubble them">
+                <Avatar name={person.name} small />
+                <span>{text}</span>
+              </div>
             </div>
+          ))}
+          {busy && <div className="bubble them thinking"><Avatar name={person.name} small /><span>…</span></div>}
+        </div>
+        <div className="ask-box">
+          <div className="ask-h">
+            <span>Ask {short(person)} about</span>
+            <span className="cost-pill">{COST.question} min a question</span>
           </div>
-        ))}
-        {busy && <div className="bubble them thinking"><Avatar name={person.name} small /><span>…</span></div>}
-      </div>
-      <div className="ask-box">
-        <div className="ask-h">
-          <span>Ask {short(person)} about</span>
-          <span className="cost-pill">{COST.question} min a question</span>
+          <div className="chips">
+            {people.map((p) => {
+              const done = !!heard[`${who}|p:${p.id}`];
+              return (
+                <button key={p.id} className={`chip ${done ? "done" : ""}`} disabled={busy} onClick={() => ask(who, `p:${p.id}`)}>
+                  {done ? "✓ " : ""}{p.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="iv-show" style={{ marginTop: 10 }}>
+            <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Show an exhibit">
+              <option value="">Or show {short(person)} an exhibit…</option>
+              {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
+                <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
+                  {r.files.map((f) => (
+                    <option key={f.id} value={String(f.exhibit)}>
+                      {heard[`${who}|e:${f.exhibit}`] ? "✓ " : ""}Exhibit {f.exhibit} — {f.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button className="chip send" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>Show</button>
+          </div>
+          {err && <p className="lookagain">{err}</p>}
         </div>
-        <div className="chips">
-          {people.map((p) => {
-            const done = !!heard[`${who}|p:${p.id}`];
-            return (
-              <button key={p.id} className={`chip ${done ? "done" : ""}`} disabled={busy} onClick={() => ask(who, `p:${p.id}`)}>
-                {done ? "✓ " : ""}{p.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="ask-h" style={{ marginTop: 12 }}>
-          <span>Or show {short(person)} an exhibit</span>
-        </div>
-        <div className="iv-show">
-          <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Choose an exhibit to show">
-            <option value="">Choose an exhibit…</option>
-            {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
-              <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
-                {r.files.map((f) => (
-                  <option key={f.id} value={String(f.exhibit)}>
-                    {heard[`${who}|e:${f.exhibit}`] ? "✓ " : ""}Exhibit {f.exhibit} — {f.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>Show</button>
-        </div>
-        {err && <p className="lookagain">{err}</p>}
-      </div>
+      </section>
     </div>
   );
 }
