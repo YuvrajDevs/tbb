@@ -206,19 +206,6 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       setPanel("guide");
     }
   }, [inBriefing, priv.guided, priv.viewed.length, s.unlocked, s.finishedAt, setPriv]);
-  // a word from the Bureau when the investigation clock runs long
-  useEffect(() => {
-    const spent = s.spent ?? 0;
-    const said = priv.clockNotes ?? [];
-    const note = spent >= 900 && !said.includes("midnight") ? "midnight" : spent >= 480 && !said.includes("8h") ? "8h" : null;
-    if (!note || s.finishedAt) return;
-    setPriv((x) => ({ ...x, clockNotes: [...(x.clockNotes ?? []), note] }));
-    toast(
-      note === "8h"
-        ? "A full working day on the clock. From here on, every half hour lowers your Bureau rating."
-        : "Midnight on the investigation clock. The Director expects a report.",
-    );
-  }, [s.spent, s.finishedAt, priv.clockNotes, setPriv, toast]);
   // new lines of enquiry open with a folder; say so, without naming them
   const linesOpen = openLines(c.accusation.methods, s.unlocked).length + openLines(c.accusation.motives, s.unlocked).length;
   const linesSeen = useRef(linesOpen);
@@ -228,7 +215,15 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   }, [linesOpen, toast]);
   // ---------- race: where I stand, and news from the other racers ----------
   const room = g.race;
-  const racePlace = room ? placeOf(room, room.me) : "";
+  // case time runs in real time, so the race view refreshes itself
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!room) return;
+    const t = window.setInterval(() => tick((n) => n + 1), 10000);
+    return () => window.clearInterval(t);
+  }, [room]);
+  const board = room ? raceBoard(room) : null;
+  const racePlace = room && board ? ordinal(board.order.indexOf(room.me) + 1) : "";
   const raceChat = room?.s.chat ?? [];
   const [raceSeen, setRaceSeen] = useState(0);
   useEffect(() => {
@@ -236,19 +231,23 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   }, [panel, raceChat.length]);
   const raceUnread = room ? Math.max(0, raceChat.filter((m) => m.by !== room.me).length - raceChat.slice(0, raceSeen).filter((m) => m.by !== room.me).length) : 0;
   const lastRace = useRef<Record<string, boolean>>({});
-  const lastWinner = useRef<string | null | undefined>(undefined);
+  const lastLead = useRef<string | null | undefined>(undefined);
+  const lastSettled = useRef(false);
   useEffect(() => {
-    if (!room) return;
+    if (!room || !board) return;
     const nm = (id: string) => room.s.players[id]?.name ?? "A player";
+    const first = lastLead.current === undefined;
     for (const [id, e] of Object.entries(room.s.race ?? {})) {
       if (!e.finishedAt || lastRace.current[id] || id === room.me) continue;
       lastRace.current[id] = true;
-      if (lastWinner.current !== undefined && !e.correct) toast(`${nm(id)} made a wrong accusation and is out of the race.`);
+      if (first) continue;
+      toast(e.correct ? `${nm(id)} solved it with a case time of ${fmtCase(board.time[id])}.` : `${nm(id)} made a wrong accusation and is out of the race.`);
     }
-    const w = room.s.winner ?? null;
-    if (lastWinner.current !== undefined && w && w !== lastWinner.current && w !== room.me) toast(`${nm(w)} closed the case first. You can still finish yours.`);
-    lastWinner.current = w;
-  }, [room, toast]);
+    if (!first && board.settled && !lastSettled.current && board.leader)
+      toast(board.leader === room.me ? "The race is over. You won." : `The race is over. ${nm(board.leader)} wins with a case time of ${fmtCase(board.time[board.leader])}.`);
+    lastLead.current = board.leader;
+    lastSettled.current = board.settled;
+  }, [room, board, toast]);
   useEffect(() => {
     if (!slideshow) return;
     for (const l of c.narration.briefing) if (l.image) new Image().src = l.image;
@@ -369,7 +368,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           </div>
         </div>
         <div className="desk-actions">
-          <InvestigationClock spent={s.spent ?? 0} />
+          {g.race && <CaseClock g={g} />}
           {s.timerEnabled && !solvedAll && (
             <TimerChip g={g} round={current} onTimeUp={() => go("checkpoint")} onUp={() => toast(`Time is up for round ${s.unlocked}. Answer the checkpoint when you are ready.`, { label: "Checkpoint", run: () => setPanel("checkpoint") })} />
           )}
@@ -561,7 +560,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                         setPanel("interview");
                       }}
                     >
-                      <option value="">Show to… · {COST.question} min</option>
+                      <option value="">Show to…{g.race ? ` · +${COST.question} min` : ""}</option>
                       {c.suspects.map((x) => (
                         <option key={x.id} value={x.id} disabled={!!priv.interviews?.[`${x.id}|e:${openFile.exhibit}`]}>
                           {priv.interviews?.[`${x.id}|e:${openFile.exhibit}`] ? "✓ " : ""}{x.name}
@@ -1388,8 +1387,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
   const real = c.suspects.find((x) => x.id === solution.suspect)!;
   const det = s.result.details ?? [];
   // the investigation clock: anything past a working day (8 hours) costs a point per half hour, up to 10
-  const spentMin = s.spent ?? 0;
-  const overTime = Math.min(10, Math.max(0, Math.floor((spentMin - 480) / 30)));
+  const board = g.race ? raceBoard(g.race) : null;
   const detRight = det.filter((d) => d.correct).length;
   // the notebook grid against the truth: the right options marked likely, the wrong ones ruled out
   const gridItems = [
@@ -1406,7 +1404,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
     0,
     Math.min(
       100,
-      Math.round((parts[0] ? 30 : 0) + (parts[1] ? 15 : 0) + (parts[2] ? 15 : 0) + (det.length ? (30 * detRight) / det.length : 30) + (10 * gridRight) / gridItems.length - hints * 3 - skipped * 5 - overTime),
+      Math.round((parts[0] ? 30 : 0) + (parts[1] ? 15 : 0) + (parts[2] ? 15 : 0) + (det.length ? (30 * detRight) / det.length : 30) + (10 * gridRight) / gridItems.length - hints * 3 - skipped * 5),
     ),
   );
   const grade = rating >= 90 ? "Distinction" : rating >= 75 ? "Commended" : rating >= 55 ? "Satisfactory" : rating >= 35 ? "Under review" : "Unfit for the field";
@@ -1423,11 +1421,13 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         </div>
         {g.race && (
           <p className="race-result">
-            {g.race.s.winner === g.race.me
-              ? "You won the race: first to close the case."
-              : right === 3
-                ? `You solved it, ${placeOf(g.race, g.race.me)} at the finish.`
-                : "Wrong accusation: you are out of the race."}
+            {right !== 3
+              ? "Wrong accusation: you are out of the race."
+              : board?.leader === g.race.me
+                ? board.settled
+                  ? "You won the race: the best case time."
+                  : "You're in the lead. Others are still working and could beat your case time."
+                : `You solved it, ${ordinal(board!.order.indexOf(g.race.me) + 1)} on case time.`}
           </p>
         )}
         <hr className="double" />
@@ -1465,7 +1465,7 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginTop: 18, textAlign: "center" }}>
           <div><div className="small muted">VERDICT</div><div className="serif" style={{ fontSize: 16 }}>{verdict}</div></div>
           <div><div className="small muted">BUREAU RATING</div><div className="serif" style={{ fontSize: 17 }}>{rating} / 100</div><div className="small muted" style={{ marginTop: 2 }}>{grade}</div></div>
-          <div><div className="small muted">CASE CLOSED AT</div><div className="serif" style={{ fontSize: 15 }}>{clockLabel(spentMin)}</div><div className="small muted" style={{ marginTop: 2 }}>{Math.floor(spentMin / 60)}h {spentMin % 60}m of work</div></div>
+          {board && <div><div className="small muted">CASE TIME</div><div className="serif" style={{ fontSize: 17 }}>{fmtCase(board.time[g.race!.me])}</div><div className="small muted" style={{ marginTop: 2 }}>incl. {g.s.spent ?? 0} min penalties</div></div>}
           <div><div className="small muted">QUESTIONS ASKED</div><div className="serif" style={{ fontSize: 17 }}>{Object.keys(g.priv.interviews ?? {}).length}</div></div>
           <div><div className="small muted">YOUR GRID</div><div className="serif" style={{ fontSize: 17 }}>{gridRight} of {gridItems.length}</div></div>
           <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
@@ -1554,7 +1554,7 @@ function InvestigatePanel(props: {
     <div>
       <div className="panel-h">
         <h2>Investigate</h2>
-        <span className="clock-pill">{clockLabel(g.s.spent ?? 0)}</span>
+        {g.race && <span className="clock-pill">Case time {fmtCase(caseMinutes(g.s))}</span>}
       </div>
       {tabs.length > 1 && <div className="seg-tabs plain" role="tablist">
         {tabs.map(([id, label]) => (
@@ -1603,7 +1603,7 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
       setErr("");
       try {
         const r = await askSuspect(c.id, person, topic, s.tokens ?? {});
-        g.act({ t: "spend", min: COST.question });
+        if (g.race) g.act({ t: "spend", min: COST.question });
         setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
         setLatest(key);
       } catch {
@@ -1685,7 +1685,7 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
         <div className="ask-box">
           <div className="ask-h">
             <span>Ask {short(person)} about</span>
-            <span className="cost-pill">{COST.question} min a question</span>
+            {g.race && <span className="cost-pill">+{COST.question} min a question</span>}
           </div>
           <div className="chips">
             {people.map((p) => {
@@ -1724,46 +1724,19 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
   return <span className={`avatar ${small ? "sm" : ""}`} aria-hidden="true">{initials}</span>;
 }
 
-/* ---------- the investigation clock: Sunday 09:05 plus every minute spent on questions, theories, hints and mistakes ---------- */
-export const clockLabel = (spent: number) => {
-  const d = new Date(CLOCK_START + spent * 60000);
-  const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-  const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-  return `${day} · ${time}`;
-};
-function InvestigationClock({ spent }: { spent: number }) {
-  const prev = useRef(spent);
-  const [delta, setDelta] = useState<{ n: number; k: number } | null>(null);
-  useEffect(() => {
-    const d = spent - prev.current;
-    prev.current = spent;
-    if (d > 0) {
-      setDelta({ n: d, k: Date.now() });
-      const t = window.setTimeout(() => setDelta(null), 2400);
-      return () => window.clearTimeout(t);
-    }
-  }, [spent]);
-  return (
-    <span className={`inv-clock hide-sm ${delta ? "ticked" : ""}`} title={`Investigation clock. Questions cost ${COST.question} min, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
-      {clockLabel(spent).toUpperCase()}
-      {delta && <span key={delta.k} className="clock-delta">+{delta.n} min</span>}
-    </span>
-  );
-}
-
 /* ---------- how to play ---------- */
 function GuidePanel({ onClose, race = false }: { onClose: () => void; race?: boolean }) {
   const items: [string, string][] = [
     ["Read the folder", "Each folder holds the exhibits for one round. Read them closely: times, names and small details matter."],
-    ["Interview", `Ask anyone about the others, or show them an exhibit and watch how they react. People lie. Each question costs ${COST.question} minutes.`],
+    ["Interview", "Ask anyone about the others, or show them an exhibit and watch how they react. People lie."],
     ["Keep your grid", "In the Notebook, rule suspects, methods and motives out, or mark them possible or likely. The report grades your grid."],
-    ["Answer the checkpoint", `Each round ends with one question. A wrong answer costs ${COST.wrong} minutes; hints cost ${COST.hint}.`],
-    ["Watch the clock", "The investigation clock starts at 09:05 on Sunday. Past a full working day, your rating starts to drop."],
+    ["Answer the checkpoint", "Each round ends with one question. If you are stuck, hints go from a nudge to the answer."],
     ["Accuse", "Name who, how and why, lock it, then prove it with five details. The Bureau rates your work out of 100."],
   ];
   if (race)
     items.push(
-      ["It's a race", "Everyone has their own copy of the case. The first to close it correctly wins. Standings show each racer's folder and clock."],
+      ["It's a race", "Everyone has their own copy of the case. Your case time is the real time since the start plus penalties. The lowest correct case time wins."],
+      ["Penalties", `Each question adds ${COST.question} minutes, each hint ${COST.hint}, each wrong checkpoint answer ${COST.wrong}.`],
       ["Theories", `Put up to ${THEORIES_PER_RACE} theories to the Bureau. It tells you which part your open folders already rule out, never which part is right. Each costs ${COST.theory} minutes.`],
       ["One shot", "You get one accusation. Get it wrong and you're out of the race."],
     );
@@ -1784,31 +1757,67 @@ function GuidePanel({ onClose, race = false }: { onClose: () => void; race?: boo
 }
 
 /* ---------- race mode ---------- */
-/** "1st", "2nd"... for a racer: correct finishers by time, then those still working by folder and clock, then those out */
-function standings(room: Game) {
+/** a racer's case time in minutes: real time since the race began plus penalties */
+const caseMinutes = (s: Shared, now = Date.now()) => Math.max(0, ((s.finishedAt ?? now) - (s.startedAt ?? now)) / 60000) + (s.spent ?? 0);
+const fmtCase = (min: number) => {
+  const m = Math.max(0, Math.round(min));
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
+};
+
+/**
+ * The race board: everyone's case time, the order, the leader (lowest correct case time) and whether the result is
+ * settled, i.e. nobody still working could beat the leader any more.
+ */
+function raceBoard(room: Game) {
+  const now = Date.now() + room.skew;
+  const start = room.s.startedAt ?? now;
   const e = room.s.race ?? {};
   const ids = Object.keys(room.s.players);
-  const rank = (id: string) => {
+  const time: Record<string, number> = {};
+  for (const id of ids) {
     const r = e[id];
-    if (!r) return [3, 0, 0];
-    if (r.finishedAt && r.correct) return [0, r.finishedAt, 0];
-    if (!r.finishedAt) return [1, -r.round, r.spent];
-    return [2, r.finishedAt, 0];
-  };
-  return ids.sort((a, b) => {
-    const x = rank(a), y = rank(b);
-    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || a.localeCompare(b);
-  });
+    time[id] = Math.max(0, ((r?.finishedAt ?? now) - start) / 60000) + (r?.spent ?? 0);
+  }
+  const solved = ids.filter((id) => e[id]?.finishedAt && e[id]?.correct).sort((a, b) => time[a] - time[b]);
+  const working = ids.filter((id) => !e[id]?.finishedAt).sort((a, b) => (e[b]?.round ?? 0) - (e[a]?.round ?? 0) || time[a] - time[b]);
+  const out = ids.filter((id) => e[id]?.finishedAt && !e[id]?.correct);
+  const leader = solved[0] ?? null;
+  const settled = !!leader && working.every((id) => time[id] >= time[leader]);
+  return { order: [...solved, ...working, ...out], time, leader, settled };
 }
 const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
-function placeOf(room: Game, id: string) {
-  const i = standings(room).indexOf(id);
-  return i < 0 ? "" : ordinal(i + 1);
+
+/** the racer's own case time, ticking, with a flash of any penalty */
+function CaseClock({ g }: { g: Game }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => tick((n) => n + 1), 15000);
+    return () => window.clearInterval(t);
+  }, []);
+  const spent = g.s.spent ?? 0;
+  const prev = useRef(spent);
+  const [delta, setDelta] = useState<{ n: number; k: number } | null>(null);
+  useEffect(() => {
+    const d = spent - prev.current;
+    prev.current = spent;
+    if (d > 0) {
+      setDelta({ n: d, k: Date.now() });
+      const t = window.setTimeout(() => setDelta(null), 2400);
+      return () => window.clearTimeout(t);
+    }
+  }, [spent]);
+  return (
+    <span className={`inv-clock ${delta ? "ticked" : ""}`} title={`Case time: real time since the start plus penalties. Questions +${COST.question} min, hints +${COST.hint}, wrong answers +${COST.wrong}, theories +${COST.theory}.`}>
+      CASE TIME {fmtCase(caseMinutes(g.s))}
+      {delta && <span key={delta.k} className="clock-delta">+{delta.n} min</span>}
+    </span>
+  );
 }
 
 function StandingsPanel({ g, room }: { g: Game; room: Game }) {
   const e = room.s.race ?? {};
-  const order = standings(room);
+  const board = raceBoard(room);
+  const order = board.order;
   const nm = (id: string) => `${room.s.players[id]?.name ?? "A player"}${id === room.me ? " (you)" : ""}`;
   return (
     <div>
@@ -1820,14 +1829,12 @@ function StandingsPanel({ g, room }: { g: Game; room: Game }) {
           const status = !r
             ? "Opening the file"
             : r.finishedAt && r.correct
-              ? room.s.winner === id
-                ? "Closed the case first"
-                : "Solved"
+              ? `${board.leader === id ? (board.settled ? "Winner" : "Leading") : "Solved"} · ${fmtCase(board.time[id])}`
               : r.finishedAt
                 ? "Out: wrong accusation"
-                : `Folder ${r.round} of ${room.c.rounds.length} · ${clockLabel(r.spent)}`;
+                : `Folder ${r.round} of ${room.c.rounds.length} · ${fmtCase(board.time[id])} so far`;
           return (
-            <li key={id} className={`${room.s.winner === id ? "won" : ""} ${r?.finishedAt && !r.correct ? "out" : ""}`}>
+            <li key={id} className={`${board.leader === id ? "won" : ""} ${r?.finishedAt && !r.correct ? "out" : ""}`}>
               <span className="st-place">{ordinal(i + 1)}</span>
               <span className={`dot ${room.online.includes(id) ? "" : "off"}`} />
               <span className="st-name">{nm(id)}</span>
@@ -1837,7 +1844,7 @@ function StandingsPanel({ g, room }: { g: Game; room: Game }) {
         })}
       </ol>
       <p className="muted-dark" style={{ fontSize: 13 }}>
-        First to close the case correctly wins. Your progress, clock and theories are your own; only your folder, clock and finish are shown here.
+        Lowest correct case time wins: real time since the start plus penalties. Your notes and theories stay private; only your folder and case time show here.
         {g.s.finishedAt ? "" : " One accusation each."}
       </p>
       <TablePanel g={room} race />
@@ -1870,7 +1877,7 @@ function TheoryPanel({ g, locked }: { g: Game; locked: boolean }) {
   };
   return (
     <div>
-      <div className="eyebrow">Race · {left} of {THEORIES_PER_RACE} theories left · each costs {COST.theory} minutes</div>
+      <div className="eyebrow">Race · {left} of {THEORIES_PER_RACE} theories left · each adds {COST.theory} minutes</div>
       <h2 className="sheet-h">Put a theory to the Bureau</h2>
       <p className="muted-dark" style={{ marginTop: -4 }}>
         Name who, how and why. If the folders you have opened rule any of it out, the Bureau tells you which part, and the exhibit

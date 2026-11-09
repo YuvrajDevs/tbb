@@ -27,9 +27,9 @@ The owner likes the current UI — keep it.
   - **Briefing:** a photo per narration line (`public/cases/017/briefing/`) with a slow camera move and a dissolve; played once
     per player. Folder 1 stays sealed until the briefing ends ("Skip the briefing" available).
   - Checkpoints with "Look again" and skip after 3 tries; 3-level private hints; round timer, off by default (Settings).
-  - **Investigation clock** (top bar): starts Sun 11 Oct 09:05; questions cost 15 min, hints 30, wrong answers 20, race theories 30.
+  - **Time only exists in a race.** Solo and classic co-op have no clock, no costs and no time penalty.
   - **Investigate** panel (one button, one phone tab): Interview, plus a Theory tab in a race. Every open exhibit has
-    **Show to…** to put it in front of a suspect directly. Costs are on the buttons and the clock flashes "+N min".
+    **Show to…** to put it in front of a suspect directly.
     (Searching the house was built and then removed: pressing a button per room added no real deduction.)
   - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
     served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
@@ -40,8 +40,8 @@ The owner likes the current UI — keep it.
   - **Interview** works like a messenger: on wide screens the people list (with the last answer as a preview) sits left
     and the chat right; on phones the list comes first and a tap opens the chat, with a back arrow.
   - **Accusation:** pick who, how and why, lock it, then answer five scored detail questions (answers server-side).
-  - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
-    Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).
+  - **Report card:** who/how/why, the details, grid accuracy, questions asked, hints, and a Bureau rating out of 100
+    (accusation 60, details 30, grid 10, minus hints and skipped checkpoints); in a race also the case time.
 - **Content protection:** checkpoint answers, hints, the solution, the reveal, the detail answers, interview answers and
   race disproofs all live server-side (`lib/server/`) and are released against signed round tokens.
 - **Evidence:** every exhibit drawn in code (`components/evidence/round1..5.tsx`); photos and audio supplied (see ASSETS.md).
@@ -51,7 +51,9 @@ The owner likes the current UI — keep it.
     split evidence; table chat; point the table to an exhibit; votes; host hand-over and the robustness work in git history.
   - **Party room, Race** (2 to 6): every player gets their own copy of the case (`useRaceGame` in `lib/game/game.ts`,
     the solo engine kept per room on each device) and reports their folder, clock and finish to the room. Standings and
-    chat in the Race panel. First correct accusation wins; a wrong accusation is out. Up to 3 **theories to the Bureau**
+    chat in the Race panel. **Case time** = real time since the race began + penalties (question 15 min, hint 30, wrong
+    checkpoint answer 20, theory 30). The lowest correct case time wins; the result settles once nobody still working could
+    beat the leader. A wrong accusation is out. Up to 3 **theories to the Bureau**
     per racer (30 min each): the server rules out one wrong part with an exhibit from a folder the racer has opened
     (`disproof` in `lib/server/case-017.ts`), and gives the same reply when nothing is ruled out, so it never confirms.
 - **Phones:** bottom tab bar (Files, Investigate, Notebook, Hints, Table or Race, Accuse), bottom sheets.

@@ -22,7 +22,7 @@ export interface Shared {
   play?: "classic" | "race";
   /** race standings, one entry per player, reported by each player's own case */
   race?: Record<string, RaceEntry>;
-  /** the first player to close the case correctly */
+  /** no longer used: the race is won on case time, worked out from the standings */
   winner?: string | null;
   lastAnswer: { round: number; choice: string; correct: boolean; at: number } | null;
   roundStartedAt: Record<number, number>;
@@ -348,7 +348,7 @@ export function reduce(c: CaseFile, s: Shared, a: Action, actor: string, ctx: Ct
       const cur = s.race?.[actor];
       if (s.play !== "race" || s.phase !== "play" || !s.players[actor] || cur?.finishedAt) return s;
       const entry: RaceEntry = { round: c.rounds.length, spent: cur?.spent ?? 0, ...cur, finishedAt: ctx.now, correct: a.correct, rating: Math.max(0, Math.min(100, Math.round(a.rating))) };
-      return bump({ race: { ...(s.race ?? {}), [actor]: entry }, winner: s.winner ?? (a.correct ? actor : null) });
+      return bump({ race: { ...(s.race ?? {}), [actor]: entry } });
     }
     case "spend":
       if (s.phase !== "play" || s.finishedAt || !s.players[actor]) return s;
