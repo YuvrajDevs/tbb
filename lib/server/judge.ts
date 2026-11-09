@@ -142,6 +142,11 @@ export function theory(caseId: string, vote: Vote, tokens: Record<string, unknow
   const s = caseSecret(caseId);
   if (!s?.disproof) return null;
   const upTo = openedUpTo(caseId, tokens);
+  // a method or motive that no open folder has raised yet cannot be put to the Bureau
+  const c = cases[caseId];
+  const early = (list: { id: string; from?: number }[], id: string) => (list.find((x) => x.id === id)?.from ?? 1) > upTo;
+  if (c && (early(c.accusation.methods, vote.method) || early(c.accusation.motives, vote.motive)))
+    return { part: null, text: "That line of enquiry has not come up in your folders yet." };
   const parts: ["suspect" | "method" | "motive", string][] = [
     ["suspect", `s:${vote.suspect}`],
     ["method", `m:${vote.method}`],

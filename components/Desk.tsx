@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
+import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, openLines, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, searchRoom, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
@@ -219,6 +219,13 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
         : "Midnight on the investigation clock. The Director expects a report.",
     );
   }, [s.spent, s.finishedAt, priv.clockNotes, setPriv, toast]);
+  // new lines of enquiry open with a folder; say so, without naming them
+  const linesOpen = openLines(c.accusation.methods, s.unlocked).length + openLines(c.accusation.motives, s.unlocked).length;
+  const linesSeen = useRef(linesOpen);
+  useEffect(() => {
+    if (linesOpen > linesSeen.current) toast("New possibilities have been added to your notebook.", { label: "Notebook", run: () => setPanel("notebook") });
+    linesSeen.current = linesOpen;
+  }, [linesOpen, toast]);
   // ---------- race: where I stand, and news from the other racers ----------
   const room = g.race;
   const racePlace = room ? placeOf(room, room.me) : "";
@@ -1016,8 +1023,6 @@ function HintsPanel({ g, round, onUse }: { g: Game; round: Round; onUse: () => P
   );
 }
 
-const GRID_NEXT: Record<string, GridMark | undefined> = { none: "out", out: "maybe", maybe: "likely", likely: undefined };
-const GRID_LABEL: Record<string, string> = { none: "", out: "✗", maybe: "?", likely: "✓" };
 /** A grid mark, falling back to the older suspect marks for games saved before the grid existed. */
 const gridMark = (priv: Private, key: string): GridMark | "none" => {
   const m = priv.grid?.[key];
@@ -1034,12 +1039,13 @@ function DeductionGrid({ g }: { g: Game }) {
   const { c, priv, setPriv } = g;
   const sections: { title: string; prefix: string; items: { id: string; label: string; sub?: string }[] }[] = [
     { title: "Who", prefix: "s", items: c.suspects.map((x) => ({ id: x.id, label: x.name, sub: `${x.role}, ${x.age} · ${x.note}` })) },
-    { title: "How", prefix: "m", items: c.accusation.methods },
-    { title: "Why", prefix: "w", items: c.accusation.motives },
+    { title: "How", prefix: "m", items: openLines(c.accusation.methods, g.s.unlocked) },
+    { title: "Why", prefix: "w", items: openLines(c.accusation.motives, g.s.unlocked) },
   ];
-  const tap = (key: string) =>
+  // set a mark directly; choosing the current mark again clears it
+  const mark = (key: string, to: GridMark) =>
     setPriv((p: Private) => {
-      const next = GRID_NEXT[gridMark(p, key)];
+      const next = gridMark(p, key) === to ? undefined : to;
       const grid = { ...(p.grid ?? {}) };
       if (next) grid[key] = next;
       else delete grid[key];
@@ -1049,18 +1055,19 @@ function DeductionGrid({ g }: { g: Game }) {
     });
   const [open, setOpen] = useState("s");
   const summary = (sec: (typeof sections)[number]) => {
-    const marks = sec.items.map((it) => gridMark(priv, `${sec.prefix}:${it.id}`));
-    const out = marks.filter((m) => m === "out").length;
-    const likely = sec.items.filter((it) => gridMark(priv, `${sec.prefix}:${it.id}`) === "likely").map((it) => (sec.prefix === "s" ? it.label.split(" ")[0] : "1 marked"));
-    return [out ? `${out} ruled out` : "", likely.length ? `likely: ${sec.prefix === "s" ? likely.join(", ") : likely.length}` : ""].filter(Boolean).join(" · ") || "nothing marked";
+    const out = sec.items.filter((it) => gridMark(priv, `${sec.prefix}:${it.id}`) === "out").length;
+    const likely = sec.items.filter((it) => gridMark(priv, `${sec.prefix}:${it.id}`) === "likely");
+    if (likely.length) return sec.prefix === "s" ? `Likely: ${likely.map((it) => it.label.split(" ")[0]).join(", ")}` : `${likely.length} likely`;
+    return out ? `${out} of ${sec.items.length} ruled out` : `${sec.items.length} to consider`;
   };
+  const MARKS: [GridMark, string][] = [["out", "Ruled out"], ["maybe", "Possible"], ["likely", "Likely"]];
   return (
     <div className="dgrid">
-      <div className="inv-tabs dgrid-tabs" role="tablist">
+      <div className="seg-tabs" role="tablist">
         {sections.map((sec) => (
           <button key={sec.prefix} role="tab" aria-selected={open === sec.prefix} className={open === sec.prefix ? "on" : ""} onClick={() => setOpen(sec.prefix)}>
-            <span>{sec.title}</span>
-            <span className="dgrid-sum">{summary(sec)}</span>
+            <span className="seg-t">{sec.title}</span>
+            <span className="seg-s">{summary(sec)}</span>
           </button>
         ))}
       </div>
@@ -1070,18 +1077,26 @@ function DeductionGrid({ g }: { g: Game }) {
             const key = `${sec.prefix}:${it.id}`;
             const m = gridMark(priv, key);
             return (
-              <button key={key} className={`dgrid-row ${m}`} onClick={() => tap(key)} aria-label={`${it.label}: ${m === "none" ? "unmarked" : m === "out" ? "ruled out" : m === "maybe" ? "possible" : "likely"}`}>
-                <span className="dgrid-box">{GRID_LABEL[m]}</span>
+              <div key={key} className={`dgrid-row ${m}`}>
                 <span className="dgrid-txt" title={it.sub}>
                   <span>{it.label}</span>
                   {it.sub && <span className="muted-dark dgrid-sub">{it.sub.split(" · ")[0]}</span>}
                 </span>
-              </button>
+                <span className="dgrid-marks" role="group" aria-label={it.label}>
+                  {MARKS.map(([id, label]) => (
+                    <button key={id} className={`mk mk-${id} ${m === id ? "on" : ""}`} aria-pressed={m === id} onClick={() => mark(key, id)}>
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              </div>
             );
           })}
         </div>
       ))}
-      <p className="muted-dark" style={{ fontSize: 13, margin: "4px 0 0" }}>Tap to cycle: ✗ ruled out, ? possible, ✓ likely, then blank. The Bureau&apos;s report grades how well your grid matched the truth.</p>
+      <p className="muted-dark dgrid-help">
+        {open === "s" ? "Everyone close to Vikram that night." : "More possibilities appear here as new evidence comes in."} Your report grades how well this grid matches the truth.
+      </p>
     </div>
   );
 }
@@ -1545,11 +1560,14 @@ function InvestigatePanel(props: {
   const tabs: [InvTab, string][] = [["interview", "Interview"], ...(g.c.rooms ? ([["search", "Search the house"]] as [InvTab, string][]) : []), ...(g.race ? ([["theory", "Theory"]] as [InvTab, string][]) : [])];
   return (
     <div>
-      <div className="eyebrow">Investigate · the clock reads {clockLabel(g.s.spent ?? 0)}</div>
-      <div className="inv-tabs" role="tablist">
+      <div className="panel-h">
+        <h2>Investigate</h2>
+        <span className="clock-pill">{clockLabel(g.s.spent ?? 0)}</span>
+      </div>
+      <div className="seg-tabs plain" role="tablist">
         {tabs.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
-            {label}
+            <span className="seg-t">{label}</span>
           </button>
         ))}
       </div>
@@ -1577,11 +1595,6 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
   const short = (x: { name: string }) => (x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name.split(" ")[0]);
   const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: short(x) }))];
   const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
-  const topicLabel = (t: string) => {
-    if (t.startsWith("p:")) return `Asked about ${t === "p:vikram" ? "Vikram" : c.suspects.find((x) => x.id === t.slice(2))?.name ?? "them"}`;
-    const f = openFiles.find((x) => String(x.exhibit) === t.slice(2));
-    return f ? `Shown Exhibit ${f.exhibit} — ${f.name}` : "Shown an exhibit";
-  };
   // a question is asked (and paid for) once, even if it is triggered twice before the answer is saved
   const inFlight = useRef(new Set<string>());
   const ask = useCallback(
@@ -1616,82 +1629,86 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
     clearPending();
     void ask(pending.who, pending.topic);
   }, [pending, clearPending, ask]);
-  const transcript = Object.entries(heard).filter(([k]) => k.startsWith(`${who}|`) && k !== latest).reverse();
-  const latestText = latest && latest.startsWith(`${who}|`) ? heard[latest] : null;
+  const convo = Object.entries(heard).filter(([k]) => k.startsWith(`${who}|`));
+  const question = (t: string) => {
+    if (t.startsWith("p:")) return t === "p:vikram" ? "Tell me about Vikram." : `What can you tell me about ${c.suspects.find((x) => x.id === t.slice(2))?.name ?? "them"}?`;
+    const f = openFiles.find((x) => String(x.exhibit) === t.slice(2));
+    return f ? `I show you Exhibit ${f.exhibit}: ${f.name.replace(/\.(pdf|jpg|png|csv|m4a)$/, "")}.` : "I show you an exhibit.";
+  };
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
+  }, [convo.length, busy, who]);
   return (
     <div>
-      <div className="iv-people">
+      <div className="people-row">
         {c.suspects.map((x) => {
           const n = Object.keys(heard).filter((k) => k.startsWith(`${x.id}|`)).length;
           return (
-            <button key={x.id} className={`iv-person ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); }}>
-              <span className="serif">{x.name}</span>
-              <span className="muted-dark">{x.role}{n ? ` · ${n} asked` : ""}</span>
+            <button key={x.id} className={`person ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); }}>
+              <Avatar name={x.name} />
+              <span className="person-n">{short(x)}</span>
+              <span className="person-r">{x.role}</span>
+              {n > 0 && <span className="person-c">{n}</span>}
             </button>
           );
         })}
       </div>
-      <p className="iv-intro">{intros[who] ?? "…"}</p>
-      <div className="iv-row">
-        <span className="eyebrow">Ask about</span>
-        <span className="iv-cost">{COST.question} min each</span>
+      <div className="convo" ref={logRef}>
+        <p className="convo-scene">{intros[who] ?? "…"}</p>
+        {convo.map(([k, text]) => (
+          <div key={k} className={k === latest ? "convo-pair fresh" : "convo-pair"}>
+            <div className="bubble you">{question(k.split("|")[1])}</div>
+            <div className="bubble them">
+              <Avatar name={person.name} small />
+              <span>{text}</span>
+            </div>
+          </div>
+        ))}
+        {busy && <div className="bubble them thinking"><Avatar name={person.name} small /><span>…</span></div>}
       </div>
-      <div className="iv-chips">
-        {people.map((p) => {
-          const done = !!heard[`${who}|p:${p.id}`];
-          return (
-            <button key={p.id} className={`btn sm ${done ? "ghost done" : ""}`} disabled={busy} onClick={() => ask(who, `p:${p.id}`)}>
-              {done ? "✓ " : ""}{p.label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="iv-row" style={{ marginTop: 14 }}>
-        <span className="eyebrow">Show {short(person)} an exhibit</span>
-      </div>
-      <div className="iv-show">
-        <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Choose an exhibit to show">
-          <option value="">Choose an exhibit…</option>
-          {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
-            <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
-              {r.files.map((f) => {
-                const done = !!heard[`${who}|e:${f.exhibit}`];
-                return (
-                  <option key={f.id} value={String(f.exhibit)}>
-                    {done ? "✓ " : ""}Exhibit {f.exhibit} — {f.name}
-                  </option>
-                );
-              })}
-            </optgroup>
-          ))}
-        </select>
-        <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>
-          {busy ? "Asking…" : heard[`${who}|e:${exhibit}`] ? "Read again" : "Show"}
-        </button>
-      </div>
-      {err && <p className="lookagain">{err}</p>}
-      {busy && <p className="iv-latest pending">{short(person)} considers the question…</p>}
-      {!busy && latestText && (
-        <div className="iv-latest" ref={(el) => el?.scrollIntoView({ block: "nearest", behavior: "smooth" })}>
-          <div className="iv-q">{topicLabel(latest!.split("|")[1])}</div>
-          <div className="iv-a">{latestText}</div>
+      <div className="ask-box">
+        <div className="ask-h">
+          <span>Ask {short(person)} about</span>
+          <span className="cost-pill">{COST.question} min a question</span>
         </div>
-      )}
-      <h2 className="sheet-h" style={{ marginTop: 22 }}>{person.name} · on the record</h2>
-      {transcript.length === 0 && !latestText ? (
-        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing asked yet. Tip: open any exhibit and use “Show to…” to put it in front of someone.</p>
-      ) : (
-        <ul className="iv-log">
-          {transcript.map(([k, text]) => (
-            <li key={k}>
-              <div className="iv-q">{topicLabel(k.split("|")[1])}</div>
-              <div className="iv-a">{text}</div>
-            </li>
-          ))}
-        </ul>
-      )}
+        <div className="chips">
+          {people.map((p) => {
+            const done = !!heard[`${who}|p:${p.id}`];
+            return (
+              <button key={p.id} className={`chip ${done ? "done" : ""}`} disabled={busy} onClick={() => ask(who, `p:${p.id}`)}>
+                {done ? "✓ " : ""}{p.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="ask-h" style={{ marginTop: 12 }}>
+          <span>Or show {short(person)} an exhibit</span>
+        </div>
+        <div className="iv-show">
+          <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Choose an exhibit to show">
+            <option value="">Choose an exhibit…</option>
+            {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
+              <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
+                {r.files.map((f) => (
+                  <option key={f.id} value={String(f.exhibit)}>
+                    {heard[`${who}|e:${f.exhibit}`] ? "✓ " : ""}Exhibit {f.exhibit} — {f.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <button className="btn sm primary" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>Show</button>
+        </div>
+        {err && <p className="lookagain">{err}</p>}
+      </div>
     </div>
   );
+}
+
+function Avatar({ name, small = false }: { name: string; small?: boolean }) {
+  const initials = name.replace(/^Dr\.\s*/, "").split(" ").map((w) => w[0]).slice(0, 2).join("");
+  return <span className={`avatar ${small ? "sm" : ""}`} aria-hidden="true">{initials}</span>;
 }
 
 /* ---------- the investigation clock: Sunday 09:05 plus every minute spent on questions, searches, hints and mistakes ---------- */
@@ -1947,8 +1964,8 @@ function TheoryPanel({ g, locked }: { g: Game; locked: boolean }) {
         <>
           <div className="theory-pick">
             <select value={v.suspect} onChange={(e) => setV({ ...v, suspect: e.target.value })} aria-label="Who"><option value="">Who…</option>{c.suspects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
-            <select value={v.method} onChange={(e) => setV({ ...v, method: e.target.value })} aria-label="How"><option value="">How…</option>{c.accusation.methods.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
-            <select value={v.motive} onChange={(e) => setV({ ...v, motive: e.target.value })} aria-label="Why"><option value="">Why…</option>{c.accusation.motives.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+            <select value={v.method} onChange={(e) => setV({ ...v, method: e.target.value })} aria-label="How"><option value="">How…</option>{openLines(c.accusation.methods, s.unlocked).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
+            <select value={v.motive} onChange={(e) => setV({ ...v, motive: e.target.value })} aria-label="Why"><option value="">Why…</option>{openLines(c.accusation.motives, s.unlocked).map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
           </div>
           <button className="btn primary" style={{ marginTop: 10 }} disabled={busy || !v.suspect || !v.method || !v.motive} onClick={ask}>{busy ? "Asking…" : "Put it to the Bureau"}</button>
           {err && <p className="lookagain">{err}</p>}

@@ -219,17 +219,17 @@ export const hollowPines: CaseFile = {
   ],
   accusation: {
     methods: [
-      { id: "kcl", label: "Injected potassium chloride into a vein" },
+      { id: "kcl", label: "Injected potassium chloride into a vein", from: 3 },
       { id: "sleep", label: "Crushed sleeping tablets into his evening milk" },
       { id: "smother", label: "Smothered him in the armchair" },
       { id: "digoxin", label: "Swapped his heart tablets for a dangerous dose" },
       { id: "natural", label: "No method. He died of natural causes" },
     ],
     motives: [
-      { id: "fraud", label: "To stop Vikram exposing the money stolen from the Rathore Trust" },
+      { id: "fraud", label: "To stop Vikram exposing the money stolen from the Rathore Trust", from: 4 },
       { id: "will", label: "To inherit before the will could be changed" },
       { id: "debt", label: "To pay off debts after he refused another loan" },
-      { id: "land", label: "To push through the sale of the lower estate land" },
+      { id: "land", label: "To push through the sale of the lower estate land", from: 2 },
       { id: "grudge", label: "Revenge for years of mistreatment in service" },
     ],
     details: [

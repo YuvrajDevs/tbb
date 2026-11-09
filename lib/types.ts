@@ -13,6 +13,8 @@ export interface EvidenceFile {
 export interface Choice {
   id: string;
   label: string;
+  /** methods and motives: the folder whose evidence first raises this line of enquiry (default 1) */
+  from?: number;
 }
 
 export interface Round {

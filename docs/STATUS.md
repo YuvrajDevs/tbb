@@ -34,8 +34,11 @@ The owner likes the current UI — keep it.
   - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
     served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
   - **Search the house:** seven rooms on a simple plan; findings released by the server as folders open (`lib/server/search-017.ts`).
-  - **Notebook:** deduction grid in Who / How / Why tabs with a running summary (ruled out, possible, likely), notes,
-    starred exhibits. The accusation is pre-filled from single "likely" marks.
+  - **Notebook:** deduction grid in Who / How / Why tabs; each row has Ruled out / Possible / Likely buttons and each tab a
+    summary. **Lines of enquiry open with the evidence:** a method or motive appears only once its folder is open
+    (`from` on the choice: the land sale from folder 2, the injection from 3, the Trust fraud from 4), with a notice that
+    does not name it. The accusation is pre-filled from single "likely" marks.
+  - **Interview** reads as a conversation: people as avatars, your questions and their answers as bubbles.
   - **Accusation:** pick who, how and why, lock it, then answer five scored detail questions (answers server-side).
   - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
     Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).

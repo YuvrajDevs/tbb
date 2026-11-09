@@ -184,6 +184,9 @@ export function scriptLines(c: CaseFile, script: string, s?: Shared | null): Nar
   return c.narration.rounds[n] ?? [];
 }
 
+/** The lines of enquiry open so far: a method or motive appears once the folder that raises it is open. */
+export const openLines = <T extends { from?: number }>(list: T[], unlocked: number) => list.filter((x) => (x.from ?? 1) <= unlocked);
+
 export const lastRound = (c: CaseFile) => c.rounds[c.rounds.length - 1].number;
 export const allSolved = (c: CaseFile, s: Shared) => c.rounds.every((r) => s.solved[r.number]);
 
