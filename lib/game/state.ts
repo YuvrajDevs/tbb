@@ -79,6 +79,8 @@ export interface Private {
   grid?: Record<string, GridMark>;
   /** interview answers this device has heard, keyed "<person>|<topic>", in the order they were asked */
   interviews?: Record<string, string>;
+  /** the exhibit each heard answer points to, same keys */
+  interviewLeads?: Record<string, number>;
   /** the how-to-play guide has been shown once */
   guided?: boolean;
   /** race mode: theories put to the Bureau and its answers */
@@ -176,6 +178,9 @@ export function scriptLines(c: CaseFile, script: string, s?: Shared | null): Nar
   const n = Number(script.replace("round-", ""));
   return c.narration.rounds[n] ?? [];
 }
+
+/** The people who have appeared in the open folders: only they can be interviewed or asked about. */
+export const present = <T extends { appears?: number }>(people: T[], unlocked: number) => people.filter((p) => (p.appears ?? 1) <= unlocked);
 
 /** The lines of enquiry open so far: a method or motive appears once the folder that raises it is open. */
 export const openLines = <T extends { from?: number }>(list: T[], unlocked: number) => list.filter((x) => (x.from ?? 1) <= unlocked);

@@ -75,6 +75,8 @@ export interface Suspect {
   role: string;
   age: number;
   note: string;
+  /** the folder in which this person first appears; they can be interviewed, or asked about, from then on (default 1) */
+  appears?: number;
 }
 
 export interface CaseFile {

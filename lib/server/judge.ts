@@ -2,7 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
 import type { CaseResult, CheckResult, HintResult, NarrationLine } from "@/lib/types";
 import { case017, type CaseSecret } from "./case-017";
-import { interviews017, type Interview } from "./interviews-017";
+import { interviews017, type Interview, type Said } from "./interviews-017";
 import { cases } from "@/lib/cases/hollow-pines";
 
 /*
@@ -88,24 +88,31 @@ const INTERVIEWS: Record<string, Record<string, Interview>> = { "017": interview
  * What a person says about a topic: "p:<person>" or "e:<exhibit>". An exhibit can only be shown once its folder is
  * open, proven by the token of the round before it.
  */
-export function ask(caseId: string, who: string, topic: string, tokens: Record<string, unknown>): { text: string; known: boolean } | "locked" | null {
+export function ask(caseId: string, who: string, topic: string, tokens: Record<string, unknown>): { text: string; known: boolean; lead?: number } | "locked" | null {
   const iv = INTERVIEWS[caseId]?.[who];
   const c = cases[caseId];
   if (!iv || !c) return null;
+  const roundOf = (n: number) => c.rounds.find((r) => r.files.some((f) => f.exhibit === n))?.number ?? 99;
   if (topic.startsWith("e:")) {
     const n = Number(topic.slice(2));
-    const round = c.rounds.find((r) => r.files.some((f) => f.exhibit === n));
-    if (!round) return null;
-    if (round.number > 1 && !tokenOk(caseId, round.number - 1, tokens?.[round.number - 1])) return "locked";
+    const r = roundOf(n);
+    if (r === 99) return null;
+    if (r > 1 && !tokenOk(caseId, r - 1, tokens?.[r - 1])) return "locked";
   } else if (!topic.startsWith("p:")) return null;
+  const upTo = openedUpTo(caseId, tokens);
+  // people can only be interviewed, or asked about, once they have appeared in an open folder ("vikram" always has)
+  const appeared = (id: string) => id === "vikram" || (c.suspects.find((x) => x.id === id)?.appears ?? 1) <= upTo;
+  if (!appeared(who) || (topic.startsWith("p:") && !appeared(topic.slice(2)))) return "locked";
+  // a lead to an exhibit in a folder still sealed is kept back
+  const out = (said: Said, known: boolean) => ({ text: said.t, known, ...(said.lead && roundOf(said.lead) <= upTo ? { lead: said.lead } : {}) });
   const said = iv.topics[topic];
-  if (said) return { text: said, known: true };
-  // a steady fallback for the same topic, so asking twice gives the same answer
-  const h = [...topic].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7);
-  return { text: iv.fallback[Math.abs(h) % iv.fallback.length], known: false };
+  if (said) return out(said, true);
+  // nothing scripted: they point somewhere useful for how far the player has got
+  return out(iv.redirect[Math.min(upTo, 5)] ?? iv.redirect[1], false);
 }
 
 export const interviewIntro = (caseId: string, who: string) => {
+  // the intro only sets the scene; who is available is enforced by ask()
   const t = INTERVIEWS[caseId]?.[who]?.intro;
   return t ? { text: t } : null;
 };

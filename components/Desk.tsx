@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, openLines, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
+import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, openLines, present, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
@@ -561,7 +561,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                       }}
                     >
                       <option value="">Show to…{g.race ? ` · +${COST.question} min` : ""}</option>
-                      {c.suspects.map((x) => (
+                      {present(c.suspects, s.unlocked).map((x) => (
                         <option key={x.id} value={x.id} disabled={!!priv.interviews?.[`${x.id}|e:${openFile.exhibit}`]}>
                           {priv.interviews?.[`${x.id}|e:${openFile.exhibit}`] ? "✓ " : ""}{x.name}
                         </option>
@@ -722,6 +722,13 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 pending={pendingAsk}
                 clearPending={() => setPendingAsk(null)}
                 locked={inBriefing}
+                onOpen={(ex) => {
+                  const f = c.rounds.flatMap((r) => r.files).find((x) => x.exhibit === ex);
+                  if (f) {
+                    setPanel(null);
+                    view(f);
+                  }
+                }}
               />
             )}
             {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} race={!!g.race} />}
@@ -1547,6 +1554,7 @@ function InvestigatePanel(props: {
   pending: { who: string; topic: string } | null;
   clearPending: () => void;
   locked: boolean;
+  onOpen: (exhibit: number) => void;
 }) {
   const { g, tab, setTab } = props;
   const tabs: [InvTab, string][] = [["interview", "Interview"], ...(g.race ? ([["theory", "Theory"]] as [InvTab, string][]) : [])];
@@ -1563,15 +1571,16 @@ function InvestigatePanel(props: {
           </button>
         ))}
       </div>}
-      {tab === "interview" && <InterviewPanel g={g} pending={props.pending} clearPending={props.clearPending} />}
+      {tab === "interview" && <InterviewPanel g={g} pending={props.pending} clearPending={props.clearPending} onOpen={props.onOpen} />}
       {tab === "theory" && g.race && <TheoryPanel g={g} locked={props.locked} />}
     </div>
   );
 }
 
-function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who: string; topic: string } | null; clearPending: () => void }) {
+function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending: { who: string; topic: string } | null; clearPending: () => void; onOpen: (exhibit: number) => void }) {
   const { c, s, priv, setPriv } = g;
-  const [who, setWho] = useState(pending?.who ?? c.suspects[0].id);
+  const here = present(c.suspects, s.unlocked);
+  const [who, setWho] = useState(pending?.who ?? here[0]?.id ?? c.suspects[0].id);
   const [intros, setIntros] = useState<Record<string, string>>({});
   const [exhibit, setExhibit] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1586,7 +1595,8 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
     fetchIntro(c.id, who).then((r) => setIntros((x) => ({ ...x, [who]: r.text }))).catch(() => {});
   }, [who, intros, c.id]);
   const short = (x: { name: string }) => (x.name.startsWith("Dr. ") ? `Dr. ${x.name.split(" ").pop()}` : x.name.split(" ")[0]);
-  const people = [{ id: "vikram", label: "Vikram" }, ...c.suspects.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: short(x) }))];
+  // only people who have appeared in an open folder can be asked about
+  const people = [{ id: "vikram", label: "Vikram" }, ...here.filter((x) => x.id !== who).map((x) => ({ id: x.id, label: short(x) }))];
   const openFiles = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files);
   // a question is asked (and paid for) once, even if it is triggered twice before the answer is saved
   const inFlight = useRef(new Set<string>());
@@ -1604,7 +1614,11 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
       try {
         const r = await askSuspect(c.id, person, topic, s.tokens ?? {});
         if (g.race) g.act({ t: "spend", min: COST.question });
-        setPriv((x) => ({ ...x, interviews: { ...(x.interviews ?? {}), [key]: r.text } }));
+        setPriv((x) => ({
+          ...x,
+          interviews: { ...(x.interviews ?? {}), [key]: r.text },
+          interviewLeads: r.lead ? { ...(x.interviewLeads ?? {}), [key]: r.lead } : x.interviewLeads,
+        }));
         setLatest(key);
       } catch {
         setErr("The interview room could not be reached. Try again.");
@@ -1644,15 +1658,16 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
         {c.suspects.map((x) => {
           const n = Object.keys(heard).filter((k) => k.startsWith(`${x.id}|`)).length;
           const last = lastWords(x.id);
+          const away = (x.appears ?? 1) > s.unlocked;
           return (
-            <button key={x.id} className={`msgr-item ${who === x.id ? "on" : ""}`} onClick={() => { setWho(x.id); setLatest(null); setChatOpen(true); }}>
+            <button key={x.id} className={`msgr-item ${who === x.id ? "on" : ""} ${away ? "away" : ""}`} disabled={away} onClick={() => { setWho(x.id); setLatest(null); setChatOpen(true); }}>
               <Avatar name={x.name} />
               <span className="msgr-meta">
                 <span className="msgr-top">
                   <span className="msgr-name">{x.name}</span>
                   {n > 0 && <span className="msgr-count">{n}</span>}
                 </span>
-                <span className="msgr-prev">{last ? last.replace(/'/g, "") : x.role}</span>
+                <span className="msgr-prev">{away ? `${x.role} · appears in folder ${x.appears}` : last ? last.replace(/'/g, "") : x.role}</span>
               </span>
             </button>
           );
@@ -1678,6 +1693,15 @@ function InterviewPanel({ g, pending, clearPending }: { g: Game; pending: { who:
                 <Avatar name={person.name} small />
                 <span>{text}</span>
               </div>
+              {(() => {
+                const ex = priv.interviewLeads?.[k];
+                const f = ex ? openFiles.find((x) => x.exhibit === ex) : undefined;
+                return f ? (
+                  <button className="lead-link" onClick={() => onOpen(f.exhibit)}>
+                    Lead: Exhibit {f.exhibit} — {f.name.replace(/\.(pdf|jpg|png|csv|m4a)$/, "")} →
+                  </button>
+                ) : null;
+              })()}
             </div>
           ))}
           {busy && <div className="bubble them thinking"><Avatar name={person.name} small /><span>…</span></div>}

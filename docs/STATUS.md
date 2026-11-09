@@ -31,8 +31,10 @@ The owner likes the current UI — keep it.
   - **Investigate** panel (one button, one phone tab): Interview, plus a Theory tab in a race. Every open exhibit has
     **Show to…** to put it in front of a suspect directly.
     (Searching the house was built and then removed: pressing a button per room added no real deduction.)
-  - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
-    served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
+  - **Interviews:** people can be interviewed, and asked about, only once they have appeared in an open folder
+    (`appears` on the suspect: Sunita and Dr. Kapoor in folder 1, the others in folder 2). Exhibits shown must be from open
+    folders. Every answer carries a lead (`lead`: the exhibit it points to, linked once that folder is open); unscripted
+    questions get a redirect for how far the player has got. Served by the server (`lib/server/interviews-017.ts`).
   - **Notebook:** deduction grid in Who / How / Why tabs; each row has Ruled out / Possible / Likely buttons and each tab a
     summary. **Lines of enquiry open with the evidence:** a method or motive appears only once its folder is open
     (`from` on the choice: the land sale from folder 2, the injection from 3, the Trust fraud from 4), with a notice that

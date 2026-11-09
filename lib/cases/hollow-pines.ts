@@ -15,10 +15,10 @@ export const hollowPines: CaseFile = {
   summary:
     "Vikram Singh Rathore, sixty-four, retired tea exporter and chairman of the Rathore Charitable Trust, was found dead in the armchair of his study on a cold Sunday morning. His family doctor called it his heart. The police are not so sure. Five people had reason to be near him that night. One of them made certain he would not live to see Monday.",
   suspects: [
-    { id: "meera", name: "Meera Rathore", role: "Wife", age: 46, note: "Married to Vikram for eleven years. Was upstairs all night, she says." },
-    { id: "arjun", name: "Arjun Rathore", role: "Son", age: 31, note: "From Vikram's first marriage. Owes money on a failed café." },
+    { id: "meera", name: "Meera Rathore", role: "Wife", age: 46, note: "Married to Vikram for eleven years. Was upstairs all night, she says.", appears: 2 },
+    { id: "arjun", name: "Arjun Rathore", role: "Son", age: 31, note: "From Vikram's first marriage. Owes money on a failed café.", appears: 2 },
     { id: "kapoor", name: "Dr. Anand Kapoor", role: "Family physician", age: 59, note: "Treated Vikram for twenty years. Trustee of the Rathore Trust." },
-    { id: "kabir", name: "Kabir Sethi", role: "Business partner", age: 48, note: "Developer. Wants the lower estate land for a resort." },
+    { id: "kabir", name: "Kabir Sethi", role: "Business partner", age: 48, note: "Developer. Wants the lower estate land for a resort.", appears: 2 },
     { id: "sunita", name: "Sunita Negi", role: "Housekeeper", age: 52, note: "Nineteen years in service. Found the body." },
   ],
   rounds: [

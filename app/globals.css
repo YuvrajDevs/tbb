@@ -861,3 +861,7 @@ span.iv-link { cursor: default; }
 @media (max-width: 900px) {
   .msgr { grid-template-columns: minmax(0, 1fr); }
 }
+.lead-link { justify-self: start; margin-left: 40px; background: none; border: 0; padding: 0; color: var(--manila); font-family: var(--display); font-size: 13.5px; cursor: pointer; text-align: left; }
+.lead-link:hover { text-decoration: underline; }
+.msgr-item.away { opacity: .45; cursor: default; }
+.msgr-item.away:hover { background: none; }

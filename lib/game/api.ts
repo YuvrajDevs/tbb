@@ -25,7 +25,7 @@ export const checkAnswer = (caseId: string, round: number, choice: string) => po
 export const skipRound = (caseId: string, round: number) => post<CheckResult>(caseId, { op: "skip", round });
 export const fetchHint = (caseId: string, round: number, level: number) => post<HintResult>(caseId, { op: "hint", round, level });
 export const askSuspect = (caseId: string, who: string, topic: string, tokens: Record<number, string>) =>
-  post<{ text: string; known: boolean }>(caseId, { op: "ask", who, topic, tokens });
+  post<{ text: string; known: boolean; lead?: number }>(caseId, { op: "ask", who, topic, tokens });
 export const fetchIntro = (caseId: string, who: string) => post<{ text: string }>(caseId, { op: "intro", who });
 export const askTheory = (caseId: string, vote: Vote, tokens: Record<number, string>) =>
   post<{ part: "suspect" | "method" | "motive" | null; exhibit?: number; text: string }>(caseId, { op: "theory", vote, tokens });

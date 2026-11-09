@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       break;
     case "ask": {
       const r = ask(id, str(body.who), str(body.topic), (body.tokens ?? {}) as Record<string, unknown>);
-      if (r === "locked") return NextResponse.json({ error: "that folder is still sealed" }, { status: 403 });
+      if (r === "locked") return NextResponse.json({ error: "not available yet" }, { status: 403 });
       out = r;
       break;
     }
