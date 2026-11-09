@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
-import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, openLines, present, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
+import { allSolved, CLOCK_START, COST, SHOW_LIMIT, THEORIES_PER_RACE, holderOf, openLines, present, shownCount, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
 import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
@@ -551,6 +551,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                   {!s.finishedAt && (
                     <select
                       className="show-to"
+                      disabled={shownCount(priv) >= SHOW_LIMIT}
                       value=""
                       aria-label="Show this exhibit to someone"
                       onChange={(e) => {
@@ -560,7 +561,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                         setPanel("interview");
                       }}
                     >
-                      <option value="">Show to…{g.race ? ` · +${COST.question} min` : ""}</option>
+                      <option value="">{shownCount(priv) >= SHOW_LIMIT ? "No showings left" : `Show to… (${SHOW_LIMIT - shownCount(priv)} left)`}{g.race ? ` · +${COST.question} min` : ""}</option>
                       {present(c.suspects, s.unlocked).map((x) => (
                         <option key={x.id} value={x.id} disabled={!!priv.interviews?.[`${x.id}|e:${openFile.exhibit}`]}>
                           {priv.interviews?.[`${x.id}|e:${openFile.exhibit}`] ? "✓ " : ""}{x.name}
@@ -1588,6 +1589,7 @@ function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending
   // phones show the people list first and open a chat on tap; wide screens show both side by side
   const [chatOpen, setChatOpen] = useState(!!pending);
   const person = c.suspects.find((x) => x.id === who)!;
+  const showsLeft = Math.max(0, SHOW_LIMIT - shownCount(priv));
   const heard = priv.interviews ?? {};
   useEffect(() => {
     if (intros[who]) return;
@@ -1607,6 +1609,11 @@ function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending
         return;
       }
       if (inFlight.current.has(key)) return;
+      // showing an exhibit spends one of the case's few showings
+      if (topic.startsWith("e:") && shownCount(priv) >= SHOW_LIMIT) {
+        setErr(`You have shown all ${SHOW_LIMIT} exhibits you are allowed in this case.`);
+        return;
+      }
       inFlight.current.add(key);
       setBusy(true);
       setErr("");
@@ -1626,7 +1633,7 @@ function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending
         setBusy(false);
       }
     },
-    [c.id, g, priv.interviews, s.tokens, setPriv],
+    [c.id, g, priv, s.tokens, setPriv],
   );
   // a question queued from "Show to…" on an open exhibit
   useEffect(() => {
@@ -1720,9 +1727,13 @@ function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending
               );
             })}
           </div>
-          <div className="iv-show" style={{ marginTop: 10 }}>
-            <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Show an exhibit">
-              <option value="">Or show {short(person)} an exhibit…</option>
+          <div className="ask-h" style={{ marginTop: 12 }}>
+            <span>Or show {short(person)} an exhibit</span>
+            <span className={`cost-pill ${showsLeft === 0 ? "spent" : ""}`}>{showsLeft} of {SHOW_LIMIT} showings left</span>
+          </div>
+          <div className="iv-show">
+            <select value={exhibit} onChange={(e) => setExhibit(e.target.value)} aria-label="Show an exhibit" disabled={showsLeft === 0}>
+              <option value="">{showsLeft === 0 ? "No showings left in this case" : "Choose an exhibit…"}</option>
               {c.rounds.filter((r) => r.number <= s.unlocked).map((r) => (
                 <optgroup key={r.number} label={`Folder ${r.number} — ${r.title}`}>
                   {r.files.map((f) => (
@@ -1733,7 +1744,7 @@ function InterviewPanel({ g, pending, clearPending, onOpen }: { g: Game; pending
                 </optgroup>
               ))}
             </select>
-            <button className="chip send" disabled={!exhibit || busy} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>Show</button>
+            <button className="chip send" disabled={!exhibit || busy || (showsLeft === 0 && !heard[`${who}|e:${exhibit}`])} onClick={() => ask(who, `e:${exhibit}`).then(() => setExhibit(""))}>Show</button>
           </div>
           {err && <p className="lookagain">{err}</p>}
         </div>
@@ -1751,7 +1762,7 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
 function GuidePanel({ onClose, race = false }: { onClose: () => void; race?: boolean }) {
   const items: [string, string][] = [
     ["Read the folder", "Each folder holds the exhibits for one round. Read them closely: times, names and small details matter."],
-    ["Interview", "Ask anyone about the others, or show them an exhibit and watch how they react. People lie."],
+    ["Interview", `Ask anyone about the others as often as you like. Showing them an exhibit is where people slip, but you can show only ${SHOW_LIMIT} exhibits in the whole case, so choose who sees what.`],
     ["Keep your grid", "In the Notebook, rule suspects, methods and motives out, or mark them possible or likely. The report grades your grid."],
     ["Answer the checkpoint", "Each round ends with one question. If you are stuck, hints go from a nudge to the answer."],
     ["Accuse", "Name who, how and why, lock it, then prove it with five details. The Bureau rates your work out of 100."],

@@ -160,6 +160,11 @@ const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", 
 
 /** What each kind of work costs on the investigation clock, in minutes. */
 export const COST = { question: 15, hint: 30, wrong: 20, theory: 30 } as const;
+/** exhibits each detective may show to people in the whole case: choose them well */
+export const SHOW_LIMIT = 5;
+/** how many exhibits this player has shown so far (each person shown each exhibit counts once) */
+export const shownCount = (p: { interviews?: Record<string, string> }) => Object.keys(p.interviews ?? {}).filter((k) => k.includes("|e:")).length;
+
 /** race mode: theories each racer may put to the Bureau */
 export const THEORIES_PER_RACE = 3;
 /** The clock starts when the Bureau takes the case: Sunday 11 October 2026, 09:05. */

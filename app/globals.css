@@ -865,3 +865,4 @@ span.iv-link { cursor: default; }
 .lead-link:hover { text-decoration: underline; }
 .msgr-item.away { opacity: .45; cursor: default; }
 .msgr-item.away:hover { background: none; }
+.cost-pill.spent { color: var(--text-3); border-color: var(--line-2); }

@@ -6,7 +6,8 @@ import "server-only";
  * `lead` names the exhibit it points to (shown as a link only once that folder is open). Leads point at the truth and at
  * the red herrings alike, as a fair mystery should. Nobody confesses; the guilty keep their stories.
  *
- * Questions about people are open from the start, so their answers only lean on round 1 and 2 material.
+ * Questions about people are unlimited and stay light: a little colour, at most a faint hint, never a linked lead.
+ * Exhibits are where people slip: shown something that concerns them, they give a lead (and a player may show only 5).
  * Anything not scripted gets the person's redirect for the furthest folder the player has opened (`redirect`).
  */
 
@@ -29,11 +30,11 @@ export const interviews017: Record<string, Interview> = {
       5: { t: "I've told you all I can. Whatever that camera says, ask the man who keeps it.", lead: 29 },
     },
     topics: {
-      "p:vikram": { t: "He was careful about his health. I filled his pill organiser myself every Sunday, so I know he took nothing he shouldn't have.", lead: 2 },
-      "p:arjun": { t: "Arjun came for money again. They were shouting by eight. After that I didn't hear him, but I'd taken my tablet by then.", lead: 14 },
-      "p:kapoor": { t: "Anand came at about nine, as he does every Saturday. I said hello in the hall and went up. He was a little quiet.", lead: 10 },
-      "p:kabir": { t: "Kabir wanted the lower land. Vikram had gone cold on him these last weeks. Kabir was not happy about it.", lead: 11 },
-      "p:sunita": { t: "Sunita took his milk in at about twenty past nine. She'd know who was in the study better than I would.", lead: 6 },
+      "p:vikram": { t: "He was careful about his health. I filled his pill organiser myself every Sunday, so I know he took nothing he shouldn't have." },
+      "p:arjun": { t: "Arjun came for money again. They were shouting by eight. After that I didn't hear him, but I'd taken my tablet by then." },
+      "p:kapoor": { t: "Anand came at about nine, as he does every Saturday. I said hello in the hall and went up. He was a little quiet." },
+      "p:kabir": { t: "Kabir wanted the lower land. Vikram had gone cold on him these last weeks. Kabir was not happy about it." },
+      "p:sunita": { t: "Sunita took his milk in at about twenty past nine. She'd know who was in the study better than I would." },
       "e:2": { t: "She reads the time of death twice. 'One in the morning? Anand said so. I was asleep. I wouldn't know.'", lead: 5 },
       "e:3": { t: "She glances at the photograph and looks away. 'The rug was straight when I went up. I didn't go into the study after nine.'", lead: 3 },
       "e:5": { t: "'I don't understand those watches. Anand made him wear it.' She hands it back without reading it, which is its own kind of answer.", lead: 5 },
@@ -65,11 +66,11 @@ export const interviews017: Record<string, Interview> = {
       5: { t: "Ask the chowkidar. He writes everything in that book of his.", lead: 29 },
     },
     topics: {
-      "p:vikram": { t: "He was hard on me. He was still my father. The last thing I said to him was that he'd regret it. I said sorry after.", lead: 14 },
-      "p:meera": { t: "Polite. Always polite. She went upstairs early with a headache, she says. I wouldn't know, my door was shut.", lead: 8 },
-      "p:kapoor": { t: "Uncle Anand was in a hurry to have it over with. Papa had a bruise on his head and he called it his heart.", lead: 7 },
-      "p:kabir": { t: "Papa's land man. He's been sniffing round Hollow Pines all year. Papa stopped taking his calls.", lead: 11 },
-      "p:sunita": { t: "Sunita didi practically raised me. If she says she heard something, she heard it.", lead: 6 },
+      "p:vikram": { t: "He was hard on me. He was still my father. The last thing I said to him was that he'd regret it. I said sorry after." },
+      "p:meera": { t: "Polite. Always polite. She went upstairs early with a headache, she says. I wouldn't know, my door was shut." },
+      "p:kapoor": { t: "Uncle Anand was in a hurry to have it over with. Papa had a bruise on his head and he called it his heart." },
+      "p:kabir": { t: "Papa's land man. He's been sniffing round Hollow Pines all year. Papa stopped taking his calls." },
+      "p:sunita": { t: "Sunita didi practically raised me. If she says she heard something, she heard it." },
       "e:2": { t: "One in the morning? He was cold when I saw him at seven, properly cold. That doesn't sound like six hours to me.", lead: 5 },
       "e:3": { t: "The rug. The chappal under the desk. Papa never left his things like that. Somebody moved things after.", lead: 3 },
       "e:5": { t: "He reads the export and goes pale. 'Something happened to him before ten. Not at one. Who cancelled the SOS?'", lead: 5 },
@@ -94,11 +95,11 @@ export const interviews017: Record<string, Interview> = {
       5: { t: "I have said what I have to say. Check the recorder before you check my word.", lead: 28 },
     },
     topics: {
-      "p:vikram": { t: "Thirty years a friend, twenty a patient. His heart was weak for a long time. When I left him he was in his chair with a book, perfectly well.", lead: 5 },
-      "p:meera": { t: "Meera nursed him through 2014 in our ICU. She was one of our best sisters. She has been devoted to him ever since.", lead: 10 },
-      "p:arjun": { t: "A troubled young man. He was shouting at his father the night he died. I could hear it from the hall.", lead: 14 },
-      "p:kabir": { t: "Sethi wanted the land. Vikram had cooled on it. I kept out of it. Sethi did not take it well.", lead: 11 },
-      "p:sunita": { t: "A loyal woman. She brought his milk to the door while I was with him, at about twenty past nine.", lead: 6 },
+      "p:vikram": { t: "Thirty years a friend, twenty a patient. His heart was weak for a long time. When I left him he was in his chair with a book, perfectly well." },
+      "p:meera": { t: "Meera nursed him through 2014 in our ICU. She was one of our best sisters. She has been devoted to him ever since." },
+      "p:arjun": { t: "A troubled young man. He was shouting at his father the night he died. I could hear it from the hall." },
+      "p:kabir": { t: "Sethi wanted the land. Vikram had cooled on it. I kept out of it. Sethi did not take it well." },
+      "p:sunita": { t: "A loyal woman. She brought his milk to the door while I was with him, at about twenty past nine." },
       "e:2": { t: "'The Inspector chose to override me.' He taps the time of death. 'One a.m. I stand by that.' He does not look at the rigor notes.", lead: 5 },
       "e:5": { t: "I entered his blood pressure on that watch myself, at about nine. The later entries I can't speak to.", lead: 5 },
       "e:6": { t: "Yes, I took the milk from her at the door. We were nearly done. I left not long after.", lead: 10 },
@@ -112,7 +113,9 @@ export const interviews017: Record<string, Interview> = {
       "e:22": { t: "Lab services for the hospital. Perfectly ordinary payments. I approved them as Medical Trustee.", lead: 24 },
       "e:24": { t: "A diagnostics partnership. My name is on it, yes. The other partner is a name on a form, nothing more.", lead: 22 },
       "e:28": { t: "Eighteen minutes fast. So I left at 9.40, just as I said. Then he stops, as if he has heard what that means.", lead: 5 },
+      "e:29": { t: "The chowkidar wrote 9.40. Mohan Lal writes down what he sees, not what some machine tells him.", lead: 28 },
       "e:30": { t: "Sunanda has no reason to lie for me. I was home before ten.", lead: 28 },
+      "e:32": { t: "He reads the number twice. 'Many people ring a doctor at night, Inspector.' He does not say whether he answered.", lead: 15 },
       "e:31": { t: "Everything in it is true. I took money. I did not take his life.", lead: 32 },
       "e:33": { t: "He hands the card back without reading the name on it. 'One of our best ICU sisters. That was a long time ago.'", lead: 34 },
       "e:34": { t: "I was there, yes. I stood in for family. He says it quickly, and moves on.", lead: 33 },
@@ -128,11 +131,11 @@ export const interviews017: Record<string, Interview> = {
       5: { t: "I'm the last man you need. Look closer to home.", lead: 32 },
     },
     topics: {
-      "p:vikram": { t: "We had a handshake deal in June. Then he went cold, overnight, about a month ago. Something else had his attention.", lead: 21 },
-      "p:meera": { t: "Charming. She always said the land would sell eventually. She seemed to know a lot about Trust business for someone who 'never' discussed it.", lead: 8 },
-      "p:arjun": { t: "The son? Owes money all over Landour. He asked me for a loan in August. I said no.", lead: 9 },
-      "p:kapoor": { t: "The good doctor sits on the Trust. Vikram trusted him with everything, until lately.", lead: 10 },
-      "p:sunita": { t: "I met her once. She gave me tea, and a look.", lead: 6 },
+      "p:vikram": { t: "We had a handshake deal in June. Then he went cold, overnight, about a month ago. Something else had his attention." },
+      "p:meera": { t: "Charming. She always said the land would sell eventually." },
+      "p:arjun": { t: "The son? Owes money all over Landour. He asked me for a loan in August. I said no." },
+      "p:kapoor": { t: "The good doctor sits on the Trust. Vikram trusted him with everything, until lately." },
+      "p:sunita": { t: "I met her once. She gave me tea, and a look." },
       "e:11": { t: "I was at Pinky's sangeet in Dehradun until half past one. Two hundred people saw me dancing badly. Check the towers.", lead: 15 },
       "e:15": { t: "I called him twice around ten to apologise. He didn't pick up. Somebody else might have been with him.", lead: 6 },
       "e:20": { t: "I'd had a couple of drinks. I wanted to talk before Monday. I thought Monday was about my land.", lead: 21 },
@@ -152,11 +155,11 @@ export const interviews017: Record<string, Interview> = {
       5: { t: "Memsahib's phone, Sahib. She is always on it with her family.", lead: 32 },
     },
     topics: {
-      "p:vikram": { t: "Sahib was strict, but fair. He paid my son's school fees for five years. This last month he worked late, worried, over papers.", lead: 21 },
-      "p:meera": { t: "Memsahib went up at nine with a headache. She told me not to disturb her. But her light was on when I went to bed.", lead: 8 },
-      "p:arjun": { t: "Arjun baba is not a bad boy. He drinks when he is sad. His scooter was in the shed in the morning, but wet.", lead: 9 },
-      "p:kapoor": { t: "Doctor Sahib took the milk from me at the door. He did not let me see Sahib. He said they were nearly done.", lead: 10 },
-      "p:kabir": { t: "The resort man. He came once. Sahib did not like him. He telephones too much.", lead: 15 },
+      "p:vikram": { t: "Sahib was strict, but fair. He paid my son's school fees for five years. This last month he seemed worried." },
+      "p:meera": { t: "Memsahib went up at nine with a headache. She told me not to disturb her, so I didn't." },
+      "p:arjun": { t: "Arjun baba is not a bad boy. He drinks when he is sad, and he was sad that night." },
+      "p:kapoor": { t: "Doctor Sahib took the milk from me at the door. He did not let me see Sahib. He said they were nearly done." },
+      "p:kabir": { t: "The resort man. He came once. Sahib did not like him. He telephones too much." },
       "e:2": { t: "One in the morning? His milk was still full in the tumbler. Sahib never left his haldi milk. Something happened before he could drink it.", lead: 3 },
       "e:3": { t: "The rug was not like that when I lit the fire at eight. And the chappal under the desk. Sahib never left them like that.", lead: 5 },
       "e:4": { t: "The study is at the end of the hall. From the front door you can hear the study, if it is quiet. I was at the front door at quarter past ten.", lead: 6 },

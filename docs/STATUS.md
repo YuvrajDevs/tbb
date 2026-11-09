@@ -33,8 +33,9 @@ The owner likes the current UI — keep it.
     (Searching the house was built and then removed: pressing a button per room added no real deduction.)
   - **Interviews:** people can be interviewed, and asked about, only once they have appeared in an open folder
     (`appears` on the suspect: Sunita and Dr. Kapoor in folder 1, the others in folder 2). Exhibits shown must be from open
-    folders. Every answer carries a lead (`lead`: the exhibit it points to, linked once that folder is open); unscripted
-    questions get a redirect for how far the player has got. Served by the server (`lib/server/interviews-017.ts`).
+    folders. Asking about people is unlimited and light (colour, at most a faint hint, no linked lead). **Showing exhibits is
+    limited to 5 per player per case** (`SHOW_LIMIT`), and that is where people slip: shown something that concerns them,
+    they give a lead (`lead`, linked once that folder is open). Unscripted exhibits get a redirect from an open folder. Served by the server (`lib/server/interviews-017.ts`).
   - **Notebook:** deduction grid in Who / How / Why tabs; each row has Ruled out / Possible / Likely buttons and each tab a
     summary. **Lines of enquiry open with the evidence:** a method or motive appears only once its folder is open
     (`from` on the choice: the land sale from folder 2, the injection from 3, the Trust fraud from 4), with a notice that
