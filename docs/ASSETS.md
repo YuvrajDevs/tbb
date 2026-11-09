@@ -105,7 +105,7 @@ for the voice. All 56 files are in place.
 
 | File | Line |
 | --- | --- |
-| `R4-01.mp3` | Tuesday. In Meera's dressing table, folded inside a jewellery box, the police find a lawyer's letter that Vikram never saw. |
+| `R4-01.mp3` | Tuesday. In a search of the house, the police find a lawyer's letter that Vikram never saw. It is sealed. It has not been left alone. |
 | `R4-02.mp3` | On his desk, under the blotter, a bank statement covered in his own pencil. |
 | `R4-03.mp3` | Open folder four. |
 

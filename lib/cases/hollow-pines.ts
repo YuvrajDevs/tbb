@@ -114,7 +114,6 @@ export const hollowPines: CaseFile = {
         { id: "r4-llp", exhibit: 24, name: "LLP master data — Kapoor Diagnostics.pdf", type: "record", date: "12 Oct 2026" },
         { id: "r4-email", exhibit: 25, name: "Email printout — Kabir to Vikram.pdf", type: "chat", date: "09 Oct 2026" },
         { id: "r4-will", exhibit: 26, name: "Extract of will.pdf", type: "document", date: "2019" },
-        { id: "r4-meera2", exhibit: 27, name: "Supplementary statement — Meera Rathore.pdf", type: "statement", date: "13 Oct 2026" },
       ],
       checkpoint: {
         question: "What was Vikram planning to do on Monday morning?",
@@ -132,6 +131,7 @@ export const hollowPines: CaseFile = {
       envelope: "Envelope 5",
       minutes: 12,
       files: [
+        { id: "r4-meera2", exhibit: 27, name: "Supplementary statement — Meera Rathore.pdf", type: "statement", date: "13 Oct 2026" },
         { id: "r5-nvr", exhibit: 28, name: "Service report — gate camera recorder.pdf", type: "record", date: "14 Oct 2026" },
         { id: "r5-gatebook", exhibit: 29, name: "Chowkidar's gate register.jpg", type: "document", date: "10 Oct 2026" },
         { id: "r5-sunanda", exhibit: 30, name: "Statement — Sunanda Kapoor.pdf", type: "statement", date: "14 Oct 2026" },
@@ -175,7 +175,7 @@ export const hollowPines: CaseFile = {
         { id: "R3-03", text: "Open folder three." },
       ],
       4: [
-        { id: "R4-01", text: "Tuesday. In Meera's dressing table, folded inside a jewellery box, the police find a lawyer's letter that Vikram never saw." },
+        { id: "R4-01", text: "Tuesday. In a search of the house, the police find a lawyer's letter that Vikram never saw. It is sealed. It has not been left alone." },
         { id: "R4-02", text: "On his desk, under the blotter, a bank statement covered in his own pencil." },
         { id: "R4-03", text: "Open folder four." },
       ],

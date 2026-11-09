@@ -120,7 +120,7 @@ export function MehtaLetter() {
         <div>Harish Mehta<br /><span className="small">Advocate, Enrol. No. UK/412/1991</span></div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, gap: 10, flexWrap: "wrap" }}>
-        <Hand brown style={{ fontSize: 18 }}>Found sealed, in jewellery box, dressing table of Smt. M. Rathore. Opened by IO 13.10.26. NB envelope flap cockled, fresh glue laid over the original gum — sent to FSL — RKB</Hand>
+        <Hand brown style={{ fontSize: 18 }}>Found sealed in search of house 13.10.26, not among deceased's papers. Opened by IO. NB envelope flap cockled, fresh glue laid over the original gum — sent to FSL — RKB</Hand>
         <Stamp rotate={-7}>Received 08 Oct</Stamp>
       </div>
     </Paper>

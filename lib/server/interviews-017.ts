@@ -46,7 +46,7 @@ export const interviews017: Record<string, Interview> = {
       "e:18": { t: "Anand draws things for his patients all the time. You should ask him why, not me.", lead: 18 },
       "e:21": { t: "Mehta on Monday? He never told me he had a meeting. He told me nothing about the Trust.", lead: 23 },
       "e:22": { t: "'Trust business. Nothing for me to worry about, he said.' Her eyes stay on the laboratory's name a moment too long.", lead: 24 },
-      "e:23": { t: "'I know of no letters. Vikram opened his own post.' The letter was found in her jewellery box.", lead: 27 },
+      "e:23": { t: "'I know of no letters. Vikram opened his own post.' She doesn't ask where it was found.", lead: 27 },
       "e:24": { t: "Her eyes rest on the partners' names a moment too long. 'Kapoor is a very common name, Inspector.'", lead: 33 },
       "e:26": { t: "Arjun and I, I suppose. I've never read it. Vikram wasn't changing anything, as far as I knew.", lead: 26 },
       "e:27": { t: "'Envelopes come unstuck in this damp. Everything does.' Fresh glue doesn't come from damp.", lead: 23 },
