@@ -3,7 +3,6 @@ import { createHmac, timingSafeEqual } from "crypto";
 import type { CaseResult, CheckResult, HintResult, NarrationLine } from "@/lib/types";
 import { case017, type CaseSecret } from "./case-017";
 import { interviews017, type Interview } from "./interviews-017";
-import { search017 } from "./search-017";
 import { cases } from "@/lib/cases/hollow-pines";
 
 /*
@@ -111,25 +110,12 @@ export const interviewIntro = (caseId: string, who: string) => {
   return t ? { text: t } : null;
 };
 
-/* ---------- searching the house ---------- */
-const SEARCHES: Record<string, Record<string, { round: number; text: string; exhibit?: number }[]>> = { "017": search017 };
-
 /** the newest folder this player has opened, proven by consecutive round tokens */
 function openedUpTo(caseId: string, tokens: Record<string, unknown>) {
   const c = cases[caseId];
   let n = 1;
   while (c && n < c.rounds.length && tokenOk(caseId, n, tokens?.[n])) n++;
   return n;
-}
-
-/** The next finding in a room that this player has not found yet and may see now; index -1 when there is none. */
-export function search(caseId: string, room: string, found: number[], tokens: Record<string, unknown>): { index: number; text: string; exhibit?: number } | null {
-  const list = SEARCHES[caseId]?.[room];
-  if (!list) return null;
-  const upTo = openedUpTo(caseId, tokens);
-  const i = list.findIndex((f, k) => f.round <= upTo && !found.includes(k));
-  if (i < 0) return { index: -1, text: "You go over the room again, slowly. Nothing new turns up, for now." };
-  return { index: i, text: list[i].text, exhibit: list[i].exhibit };
 }
 
 /* ---------- race-mode theories ---------- */

@@ -27,13 +27,12 @@ The owner likes the current UI — keep it.
   - **Briefing:** a photo per narration line (`public/cases/017/briefing/`) with a slow camera move and a dissolve; played once
     per player. Folder 1 stays sealed until the briefing ends ("Skip the briefing" available).
   - Checkpoints with "Look again" and skip after 3 tries; 3-level private hints; round timer, off by default (Settings).
-  - **Investigation clock** (top bar): starts Sun 11 Oct 09:05; questions cost 15 min, searches 20, hints 30, wrong answers 20.
-  - **Investigate** panel (one button, one phone tab) with tabs: Interview, Search the house, and Theory in a race.
-    Every open exhibit has **Show to…** to put it in front of a suspect directly. Costs are on the buttons and the clock
-    flashes "+N min"; an empty search is free and marks the room until the next folder.
+  - **Investigation clock** (top bar): starts Sun 11 Oct 09:05; questions cost 15 min, hints 30, wrong answers 20, race theories 30.
+  - **Investigate** panel (one button, one phone tab): Interview, plus a Theory tab in a race. Every open exhibit has
+    **Show to…** to put it in front of a suspect directly. Costs are on the buttons and the clock flashes "+N min".
+    (Searching the house was built and then removed: pressing a button per room added no real deduction.)
   - **Interviews:** ask any of the five about each other or show them an exhibit from an open folder. Answers are text,
     served by the server (`lib/server/interviews-017.ts`); transcripts kept per player.
-  - **Search the house:** seven rooms on a simple plan; findings released by the server as folders open (`lib/server/search-017.ts`).
   - **Notebook:** deduction grid in Who / How / Why tabs; each row has Ruled out / Possible / Likely buttons and each tab a
     summary. **Lines of enquiry open with the evidence:** a method or motive appears only once its folder is open
     (`from` on the choice: the land sale from folder 2, the injection from 3, the Trust fraud from 4), with a notice that
@@ -44,7 +43,7 @@ The owner likes the current UI — keep it.
   - **Report card:** who/how/why, the details, grid accuracy, questions asked, time on the clock, hints, and a
     Bureau rating out of 100 (accusation 60, details 30, grid 10, minus hints, skipped checkpoints and time past 8 hours).
 - **Content protection:** checkpoint answers, hints, the solution, the reveal, the detail answers, interview answers and
-  search findings all live server-side (`lib/server/`) and are released against signed round tokens.
+  race disproofs all live server-side (`lib/server/`) and are released against signed round tokens.
 - **Evidence:** every exhibit drawn in code (`components/evidence/round1..5.tsx`); photos and audio supplied (see ASSETS.md).
 - **Play styles:**
   - **Solo:** classic only.

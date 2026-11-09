@@ -16,7 +16,7 @@ export interface Shared {
   unlocked: number;
   solved: Record<number, "correct" | "skipped">;
   wrongTries: Record<number, number>;
-  /** minutes on the investigation clock: questions, searches, hints and wrong answers cost time */
+  /** minutes on the investigation clock: questions, theories, hints and wrong answers cost time */
   spent?: number;
   /** party rooms: "classic" solves one case together; "race" gives every player their own case and a winner */
   play?: "classic" | "race";
@@ -79,13 +79,6 @@ export interface Private {
   grid?: Record<string, GridMark>;
   /** interview answers this device has heard, keyed "<person>|<topic>", in the order they were asked */
   interviews?: Record<string, string>;
-  /** what this device has found searching the house: room -> finding indexes, and "room:index" -> text */
-  searched?: Record<string, number[]>;
-  findings?: Record<string, string>;
-  /** the exhibit a finding points to, same keys as findings */
-  findingExhibit?: Record<string, number>;
-  /** rooms searched bare, and the folder that was open at the time */
-  searchedOut?: Record<string, number>;
   /** the how-to-play guide has been shown once */
   guided?: boolean;
   /** race mode: theories put to the Bureau and its answers */
@@ -151,7 +144,7 @@ export type Action =
   | { t: "suggest"; choice: string }
   | { t: "point"; fileId: string }
   | { t: "show"; fileId: string }
-  /** time on the investigation clock for a question or a search */
+  /** time on the investigation clock for a question or a theory */
   | { t: "spend"; min: number }
   /** lobby: classic (together) or race (everyone on their own case) */
   | { t: "setPlay"; play: "classic" | "race" }
@@ -164,7 +157,7 @@ export type Action =
 const OPEN: Action["t"][] = ["join", "hint", "vote", "say", "suggest", "point", "show", "spend", "raceStatus", "raceFinish"];
 
 /** What each kind of work costs on the investigation clock, in minutes. */
-export const COST = { question: 15, search: 20, hint: 30, wrong: 20, theory: 30 } as const;
+export const COST = { question: 15, hint: 30, wrong: 20, theory: 30 } as const;
 /** race mode: theories each racer may put to the Bureau */
 export const THEORIES_PER_RACE = 3;
 /** The clock starts when the Bureau takes the case: Sunday 11 October 2026, 09:05. */

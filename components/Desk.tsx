@@ -6,7 +6,7 @@ import type { CaseFile, EvidenceFile, NudgeKind, Round } from "@/lib/types";
 import type { Game } from "@/lib/game/game";
 import { allSolved, CLOCK_START, COST, THEORIES_PER_RACE, holderOf, openLines, lastRound, scriptLines, sortedPlayers, type Private, type Shared, type GridMark, type Vote } from "@/lib/game/state";
 import { isSpeaking, speakLine, stopNarration } from "@/lib/game/narrator";
-import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, searchRoom, skipRound } from "@/lib/game/api";
+import { askSuspect, askTheory, checkAnswer, fetchHint, fetchIntro, fetchVerdict, skipRound } from "@/lib/game/api";
 import { playClick, playPageTurn } from "@/lib/game/sound";
 import { SoundControls } from "./SoundSettings";
 import { RatingPrompt } from "./RatingPrompt";
@@ -23,7 +23,7 @@ const IDLE_MS = (() => {
   }
 })();
 
-type Panel = null | "interview" | "search" | "guide" | "standings" | "theory" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
+type Panel = null | "interview" | "guide" | "standings" | "theory" | "notebook" | "hints" | "checkpoint" | "settings" | "accuse" | "reveal" | "table";
 type Toast = { id: number; text: string; action?: { label: string; run: () => void } };
 
 const fileById = (c: CaseFile, id: string) => c.rounds.flatMap((r) => r.files).find((f) => f.id === id);
@@ -39,7 +39,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
   const [zoom, setZoom] = useState(1);
   const [narOpen, setNarOpen] = useState(false);
   // the Investigate panel remembers its last tab; "Show to…" on an exhibit queues a question for it
-  const [invTab, setInvTab] = useState<"interview" | "search" | "theory">("interview");
+  const [invTab, setInvTab] = useState<"interview" | "theory">("interview");
   const [pendingAsk, setPendingAsk] = useState<{ who: string; topic: string } | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   useEffect(() => {
@@ -385,7 +385,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
               {raceUnread > 0 && <span className="badge">{raceUnread}</span>}
             </button>
           )}
-          <button className="btn sm hide-sm inv-btn" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : "Search the house, interview people" + (g.race ? ", put theories to the Bureau" : "")} onClick={() => go(invTab)}>
+          <button className="btn sm hide-sm inv-btn" disabled={inBriefing} title={inBriefing ? "Opens after the briefing" : "Interview the people in the case" + (g.race ? ", or put a theory to the Bureau" : "")} onClick={() => go(invTab)}>
             {Glyph.search} Investigate
           </button>
           <button className="btn sm ghost hide-sm" onClick={() => go("notebook")}>Notebook</button>
@@ -666,7 +666,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
           <button className={!panel && !openFile ? "on" : ""} onClick={() => { setPanel(null); setFileId(null); }}>
             {Glyph.files}<span>Files</span>
           </button>
-          <button className={panel === "interview" || panel === "search" || panel === "theory" ? "on" : ""} disabled={inBriefing} onClick={() => go(invTab)}>{Glyph.search}<span>Investigate</span></button>
+          <button className={panel === "interview" || panel === "theory" ? "on" : ""} disabled={inBriefing} onClick={() => go(invTab)}>{Glyph.search}<span>Investigate</span></button>
           <button className={panel === "notebook" ? "on" : ""} onClick={() => go("notebook")}>{Glyph.notes}<span>Notebook</span></button>
           <button className={panel === "hints" ? "on" : ""} onClick={() => go("hints")}>{Glyph.hint}<span>Hints</span></button>
           {g.race && (
@@ -690,7 +690,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
       {/* ---------- panels ---------- */}
       {panel && (
         <div className="overlay" onClick={() => setPanel(null)}>
-          <div className={`sheet ${panel === "reveal" ? "wide" : panel === "interview" || panel === "search" || panel === "theory" ? "xwide" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+          <div className={`sheet ${panel === "reveal" ? "wide" : panel === "interview" || panel === "theory" ? "xwide" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="sheet-grip" aria-hidden />
             <button className="iconbtn sheet-x" onClick={() => setPanel(null)} aria-label="Close">{Glyph.close}</button>
             {panel === "checkpoint" && <CheckpointPanel g={g} round={current} onClose={() => setPanel(null)} />}
@@ -712,7 +712,7 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 }}
               />
             )}
-            {(panel === "interview" || panel === "search" || panel === "theory") && (
+            {(panel === "interview" || panel === "theory") && (
               <InvestigatePanel
                 g={g}
                 tab={panel}
@@ -723,13 +723,6 @@ export function Desk({ g, exitHref }: { g: Game; exitHref: string }) {
                 pending={pendingAsk}
                 clearPending={() => setPendingAsk(null)}
                 locked={inBriefing}
-                onOpen={(ex) => {
-                  const f = c.rounds.flatMap((r) => r.files).find((x) => x.exhibit === ex);
-                  if (f) {
-                    setPanel(null);
-                    view(f);
-                  }
-                }}
               />
             )}
             {panel === "guide" && <GuidePanel onClose={() => setPanel(null)} race={!!g.race} />}
@@ -1545,8 +1538,8 @@ function BriefingStill({ src }: { src: string }) {
   );
 }
 
-/* ---------- investigate: interviews, searching the house and (in a race) theories, in one panel ---------- */
-type InvTab = "interview" | "search" | "theory";
+/* ---------- investigate: interviews and (in a race) theories, in one panel ---------- */
+type InvTab = "interview" | "theory";
 function InvestigatePanel(props: {
   g: Game;
   tab: InvTab;
@@ -1554,25 +1547,23 @@ function InvestigatePanel(props: {
   pending: { who: string; topic: string } | null;
   clearPending: () => void;
   locked: boolean;
-  onOpen: (exhibit: number) => void;
 }) {
   const { g, tab, setTab } = props;
-  const tabs: [InvTab, string][] = [["interview", "Interview"], ...(g.c.rooms ? ([["search", "Search the house"]] as [InvTab, string][]) : []), ...(g.race ? ([["theory", "Theory"]] as [InvTab, string][]) : [])];
+  const tabs: [InvTab, string][] = [["interview", "Interview"], ...(g.race ? ([["theory", "Theory"]] as [InvTab, string][]) : [])];
   return (
     <div>
       <div className="panel-h">
         <h2>Investigate</h2>
         <span className="clock-pill">{clockLabel(g.s.spent ?? 0)}</span>
       </div>
-      <div className="seg-tabs plain" role="tablist">
+      {tabs.length > 1 && <div className="seg-tabs plain" role="tablist">
         {tabs.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}>
             <span className="seg-t">{label}</span>
           </button>
         ))}
-      </div>
+      </div>}
       {tab === "interview" && <InterviewPanel g={g} pending={props.pending} clearPending={props.clearPending} />}
-      {tab === "search" && <SearchPanel g={g} onOpen={props.onOpen} />}
       {tab === "theory" && g.race && <TheoryPanel g={g} locked={props.locked} />}
     </div>
   );
@@ -1733,7 +1724,7 @@ function Avatar({ name, small = false }: { name: string; small?: boolean }) {
   return <span className={`avatar ${small ? "sm" : ""}`} aria-hidden="true">{initials}</span>;
 }
 
-/* ---------- the investigation clock: Sunday 09:05 plus every minute spent on questions, searches, hints and mistakes ---------- */
+/* ---------- the investigation clock: Sunday 09:05 plus every minute spent on questions, theories, hints and mistakes ---------- */
 export const clockLabel = (spent: number) => {
   const d = new Date(CLOCK_START + spent * 60000);
   const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -1753,104 +1744,10 @@ function InvestigationClock({ spent }: { spent: number }) {
     }
   }, [spent]);
   return (
-    <span className={`inv-clock hide-sm ${delta ? "ticked" : ""}`} title={`Investigation clock. Questions cost ${COST.question} min, searches ${COST.search}, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
+    <span className={`inv-clock hide-sm ${delta ? "ticked" : ""}`} title={`Investigation clock. Questions cost ${COST.question} min, hints ${COST.hint}, wrong answers ${COST.wrong}.`}>
       {clockLabel(spent).toUpperCase()}
       {delta && <span key={delta.k} className="clock-delta">+{delta.n} min</span>}
     </span>
-  );
-}
-
-/* ---------- searching the house ---------- */
-function SearchPanel({ g, onOpen }: { g: Game; onOpen: (exhibit: number) => void }) {
-  const { c, s, priv, setPriv } = g;
-  const rooms = c.rooms ?? [];
-  const [room, setRoom] = useState(rooms[0]?.id ?? "");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [last, setLast] = useState<string | null>(null);
-  const found = priv.searched ?? {};
-  // a room searched bare stays marked until the next folder opens, so nobody pays twice for nothing
-  const bare = (id: string) => (priv.searchedOut?.[id] ?? 0) >= s.unlocked;
-  const label = (id: string) => rooms.find((r) => r.id === id)?.label ?? id;
-  const go = async () => {
-    setBusy(true);
-    setErr("");
-    try {
-      const r = await searchRoom(c.id, room, found[room] ?? [], s.tokens ?? {});
-      if (r.index < 0) {
-        // nothing new: no time charged, and the room is marked for this folder
-        setPriv((x) => ({ ...x, searchedOut: { ...(x.searchedOut ?? {}), [room]: s.unlocked } }));
-        setLast(null);
-      } else {
-        g.act({ t: "spend", min: COST.search });
-        const key = `${room}:${r.index}`;
-        setPriv((x) => ({
-          ...x,
-          searched: { ...(x.searched ?? {}), [room]: [...(x.searched?.[room] ?? []), r.index] },
-          findings: { ...(x.findings ?? {}), [key]: r.text },
-          findingExhibit: r.exhibit ? { ...(x.findingExhibit ?? {}), [key]: r.exhibit } : x.findingExhibit,
-        }));
-        setLast(key);
-      }
-    } catch {
-      setErr("The search could not be logged. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const related = (k: string) => {
-    const ex = priv.findingExhibit?.[k];
-    if (!ex) return null;
-    const f = c.rounds.filter((r) => r.number <= s.unlocked).flatMap((r) => r.files).find((x) => x.exhibit === ex);
-    return f ? (
-      <button className="iv-link" onClick={() => onOpen(ex)}>Related: Exhibit {ex} — {f.name} · Open it</button>
-    ) : (
-      <span className="iv-link muted-dark">Related to an exhibit in a folder still sealed</span>
-    );
-  };
-  const finding = (k: string, text: string, cls = "") => (
-    <li key={k} className={cls}>
-      <div className="iv-q">{label(k.split(":")[0])}</div>
-      <div className="iv-a">{text}</div>
-      {related(k)}
-    </li>
-  );
-  const log = Object.entries(priv.findings ?? {}).filter(([k]) => k !== last).reverse();
-  return (
-    <div>
-      <div className="plan">
-        {rooms.map((r) => (
-          <button
-            key={r.id}
-            className={`plan-room ${room === r.id ? "on" : ""} ${bare(r.id) ? "bare" : ""} f-${r.floor}`}
-            style={{ gridColumn: `${r.area[0]} / span ${r.area[2]}`, gridRow: `${r.area[1]} / span ${r.area[3]}` }}
-            onClick={() => setRoom(r.id)}
-          >
-            <span>{r.label}</span>
-            <span className="plan-n">{bare(r.id) ? "searched · more later" : (found[r.id] ?? []).length ? `${found[r.id].length} found` : ""}</span>
-          </button>
-        ))}
-      </div>
-      <div className="plan-key">
-        <span className="f-ground">Ground floor</span>
-        <span className="f-upper">Upstairs</span>
-        <span className="f-grounds">The grounds</span>
-      </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 14, flexWrap: "wrap" }}>
-        <button className="btn primary" disabled={!room || busy || bare(room)} onClick={go}>
-          {busy ? "Searching…" : `Search ${label(room).toLowerCase()} · ${COST.search} min`}
-        </button>
-        {bare(room) && <span className="muted-dark" style={{ fontSize: 14 }}>Nothing more here for now. Rooms can hold more once the next folder opens.</span>}
-        {err && <span className="lookagain" style={{ margin: 0 }}>{err}</span>}
-      </div>
-      {last && priv.findings?.[last] && <ul className="iv-log" style={{ marginTop: 16 }}>{finding(last, priv.findings[last], "iv-latest")}</ul>}
-      <h2 className="sheet-h" style={{ marginTop: 22 }}>Found so far</h2>
-      {log.length === 0 && !last ? (
-        <p className="muted-dark" style={{ fontStyle: "italic" }}>Nothing yet. Searching a room costs time only when it turns something up.</p>
-      ) : (
-        <ul className="iv-log">{log.map(([k, text]) => finding(k, text))}</ul>
-      )}
-    </div>
   );
 }
 
@@ -1858,7 +1755,6 @@ function SearchPanel({ g, onOpen }: { g: Game; onOpen: (exhibit: number) => void
 function GuidePanel({ onClose, race = false }: { onClose: () => void; race?: boolean }) {
   const items: [string, string][] = [
     ["Read the folder", "Each folder holds the exhibits for one round. Read them closely: times, names and small details matter."],
-    ["Search the house", `Look round Hollow Pines room by room. Rooms give up more as new folders open. Each search costs ${COST.search} minutes.`],
     ["Interview", `Ask anyone about the others, or show them an exhibit and watch how they react. People lie. Each question costs ${COST.question} minutes.`],
     ["Keep your grid", "In the Notebook, rule suspects, methods and motives out, or mark them possible or likely. The report grades your grid."],
     ["Answer the checkpoint", `Each round ends with one question. A wrong answer costs ${COST.wrong} minutes; hints cost ${COST.hint}.`],

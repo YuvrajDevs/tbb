@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ask, check, hint, interviewIntro, search, skip, theory, verdict, type Vote } from "@/lib/server/judge";
+import { ask, check, hint, interviewIntro, skip, theory, verdict, type Vote } from "@/lib/server/judge";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
  *   { op: "verdict", vote, tokens }    -> CaseResult, only with a token for every round
  *   { op: "ask", who, topic, tokens }  -> { text, known }: an interview answer ("p:<person>" or "e:<exhibit>")
  *   { op: "intro", who }               -> { text }: how an interview opens
- *   { op: "search", room, found, tokens } -> { index, text }: the next finding in a room
  *   { op: "theory", vote, tokens }     -> { part, exhibit, text }: race mode, one wrong part ruled out
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -44,11 +43,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     case "theory": {
       const v = (body.vote ?? {}) as Record<string, unknown>;
       out = theory(id, { suspect: str(v.suspect), method: str(v.method), motive: str(v.motive) }, (body.tokens ?? {}) as Record<string, unknown>);
-      break;
-    }
-    case "search": {
-      const found = Array.isArray(body.found) ? body.found.slice(0, 20).map(Number).filter(Number.isInteger) : [];
-      out = search(id, str(body.room), found, (body.tokens ?? {}) as Record<string, unknown>);
       break;
     }
     case "intro": {
