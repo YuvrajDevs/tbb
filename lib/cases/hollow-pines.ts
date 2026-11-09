@@ -236,13 +236,13 @@ export const hollowPines: CaseFile = {
         ],
       },
       {
-        id: "camera",
-        q: "Why does the gate camera disagree with Dr. Kapoor's account of his evening?",
+        id: "phone",
+        q: "Where was Meera's phone between 9:40 and 10:50 that night?",
         choices: [
-          { id: "fast", label: "The recorder's clock runs 18 minutes fast" },
-          { id: "lied", label: "Dr. Kapoor lied about when he left" },
-          { id: "edited", label: "Someone edited the footage" },
-          { id: "service", label: "He left by the service gate, which has no camera" },
+          { id: "bedroom", label: "Upstairs in the bedroom, as she said" },
+          { id: "study", label: "Downstairs, on the study's Wi-Fi" },
+          { id: "off", label: "Switched off all night" },
+          { id: "out", label: "Out of the house" },
         ],
       },
       {

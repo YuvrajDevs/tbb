@@ -107,8 +107,10 @@ export function ask(caseId: string, who: string, topic: string, tokens: Record<s
   const out = (said: Said, known: boolean) => ({ text: said.t, known, ...(said.lead && roundOf(said.lead) <= upTo ? { lead: said.lead } : {}) });
   const said = iv.topics[topic];
   if (said) return out(said, true);
-  // nothing scripted: they point somewhere useful for how far the player has got
-  return out(iv.redirect[Math.min(upTo, 5)] ?? iv.redirect[1], false);
+  // nothing scripted: they point somewhere useful, from any folder opened so far, steady for the same question
+  const pool = Object.entries(iv.redirect).filter(([r]) => Number(r) <= upTo).map(([, v]) => v);
+  const h = Math.abs([...topic].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) | 0, 7));
+  return out(pool[h % pool.length] ?? iv.redirect[1], false);
 }
 
 export const interviewIntro = (caseId: string, who: string) => {

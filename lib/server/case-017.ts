@@ -243,7 +243,7 @@ export const case017: CaseSecret = {
       }
     ]
   },
-  "details": { "source": "hospital", "camera": "fast", "voices": "meera-call", "letter": "steamed", "pair": "meera-kapoor" },
+  "details": { "source": "hospital", "phone": "study", "voices": "meera-call", "letter": "steamed", "pair": "meera-kapoor" },
   "disproof": {
     "s:arjun": { "exhibit": 19, "round": 3, "text": "Arjun was drinking at the Clocktower Bar until nearly midnight. He was not in the house when Vikram died." },
     "s:kabir": { "exhibit": 15, "round": 2, "text": "Kabir's calls that night come from a tower in Dehradun. He was at the sangeet, an hour away." },

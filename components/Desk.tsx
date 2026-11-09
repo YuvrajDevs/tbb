@@ -1475,7 +1475,6 @@ function RevealPanel({ g, onClose }: { g: Game; onClose: () => void }) {
           {board && <div><div className="small muted">CASE TIME</div><div className="serif" style={{ fontSize: 17 }}>{fmtCase(board.time[g.race!.me])}</div><div className="small muted" style={{ marginTop: 2 }}>incl. {g.s.spent ?? 0} min penalties</div></div>}
           <div><div className="small muted">QUESTIONS ASKED</div><div className="serif" style={{ fontSize: 17 }}>{Object.keys(g.priv.interviews ?? {}).length}</div></div>
           <div><div className="small muted">YOUR GRID</div><div className="serif" style={{ fontSize: 17 }}>{gridRight} of {gridItems.length}</div></div>
-          <div><div className="small muted">TIME TAKEN</div><div className="serif" style={{ fontSize: 17 }}>{Math.floor(mins / 60)}h {mins % 60}m</div></div>
           <div><div className="small muted">HINTS USED</div><div className="serif" style={{ fontSize: 17 }}>{hints}</div></div>
           <div><div className="small muted">CHECKPOINTS</div><div className="serif" style={{ fontSize: 17 }}>{c.rounds.length - skipped} of {c.rounds.length} unaided</div></div>
         </div>
